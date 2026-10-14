@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0d1117">
+<title>Angela — Field Copilot</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0d1117; color: #e6edf3;
+    min-height: 100vh; padding: 16px;
+    display: flex; flex-direction: column; align-items: center;
+    padding-bottom: 40px;
+  }
+  h1 { font-size: 1.3rem; margin-bottom: 4px; }
+  .status { color: #8b949e; font-size: 0.8rem; margin-bottom: 16px; text-align: center; min-height: 18px; }
+
+  /* Progress */
+  .progress {
+    background: #161b22; border-radius: 12px; padding: 10px 16px;
+    font-size: 0.85rem; width: 100%; max-width: 420px;
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px;
+  }
+  .progress .count { color: #58a6ff; font-weight: 700; }
+
+  /* CSV loader */
+  .load-box {
+    background: #161b22; border: 2px dashed #30363d; border-radius: 12px;
+    padding: 16px; text-align: center; margin-bottom: 12px;
+    width: 100%; max-width: 420px; cursor: pointer;
+  }
+  .load-box:hover { border-color: #58a6ff; }
+  .load-box input { display: none; }
+  .load-box small { color: #8b949e; display: block; margin-top: 4px; font-size: 0.75rem; }
+
+  /* Mic */
+  .mic {
+    width: 110px; height: 110px; border-radius: 50%;
+    background: #da3633; border: none; color: white;
+    font-size: 44px; cursor: pointer;
+    box-shadow: 0 8px 24px rgba(218,54,51,.4);
+    transition: all .2s; margin: 8px 0 20px;
+  }
+  .mic:active { transform: scale(.95); }
+  .mic.listening {
+    background: #238636; animation: pulse 1.5s infinite;
+  }
+  .mic:disabled { opacity: .35; cursor: not-allowed; }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(35,134,54,.7); }
+    70%  { box-shadow: 0 0 0 24px rgba(35,134,54,0); }
+    100% { box-shadow: 0 0 0 0 rgba(35,134,54,0); }
+  }
+
+  /* Next stop card */
+  .next-card {
+    background: linear-gradient(135deg, #161b22, #1c2531);
+    border: 1px solid #30363d; border-radius: 16px;
+    padding: 18px; width: 100%; max-width: 420px;
+    margin-bottom: 12px; display: none;
+  }
+  .next-card.show { display: block; }
+  .next-card .label {
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: .5px;
+    color: #8b949e; margin-bottom: 8px;
+  }
+  .next-card .name {
+    font-size: 1.25rem; font-weight: 700; color: #e6edf3;
+    margin-bottom: 4px; line-height: 1.25;
+  }
+  .next-card .address {
+    font-size: 0.85rem; color: #8b949e; margin-bottom: 12px;
+  }
+  .next-card .metrics {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px;
+  }
+  .metric {
+    background: #0d1117; border-radius: 8px; padding: 6px 10px;
+    font-size: 0.75rem; color: #8b949e;
+  }
+  .metric strong { color: #e6edf3; }
+
+  .status-badge {
+    display: inline-block; padding: 3px 10px; border-radius: 12px;
+    font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .status-badge.Critical { background: #da3633; color: white; }
+  .status-badge.Warning  { background: #d29922; color: white; }
+  .status-badge.Good     { background: #238636; color: white; }
+  .status-badge.Offline  { background: #6e7681; color: white; }
+
+  /* Action buttons */
+  .actions {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+    margin-top: 4px;
+  }
+  .actions button {
+    padding: 14px 8px; border-radius: 12px; border: none;
+    font-size: 0.9rem; font-weight: 700; cursor: pointer;
+    transition: all .15s; color: white;
+  }
+  .actions button:active { transform: scale(.96); }
+  .btn-call { background: #1f6feb; }
+  .btn-done { background: #238636; }
+  .btn-skip { background: #6e7681; }
+
+  /* Panels */
+  .panel {
+    background: #161b22; border-radius: 12px; padding: 12px 16px;
+    margin-top: 10px; width: 100%; max-width: 420px;
+    font-size: 0.85rem;
+  }
+  .panel .label { color: #8b949e; font-size: 0.65rem; text-transform: uppercase; margin-bottom: 4px; }
+  .panel .value { color: #e6edf3; line-height: 1.4; }
+
+  /* Commands */
+  .commands {
+    margin-top: 20px; width: 100%; max-width: 420px;
+    background: #161b22; border-radius: 12px; padding: 14px 16px;
+    font-size: 0.8rem;
+  }
+  .commands h3 { color: #58a6ff; margin-bottom: 6px; font-size: 0.85rem; }
+  .commands li { color: #8b949e; margin: 4px 0; list-style: none; }
+  .commands li::before { content: "🎤 "; }
+
+  /* Reset button */
+  .reset-btn {
+    margin-top: 16px; background: #21262d; color: #8b949e;
+    border: 1px solid #30363d; padding: 8px 20px; border-radius: 20px;
+    font-size: 0.8rem; cursor: pointer;
+  }
+  .reset-btn:active { background: #30363d; }
+
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: #238636; color: white; padding: 10px 20px; border-radius: 24px;
+    font-size: 0.85rem; opacity: 0; transition: opacity .3s;
+    pointer-events: none; z-index: 999;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<h1>🎙️ Angela</h1>
+<div class="status" id="status">Upload your CSV to begin</div>
+
+<div class="progress" id="progressBar" style="display:none;">
+  <span>📍 Route Progress</span>
+  <span><span class="count" id="visitedCount">0</span> / <span id="totalCount">0</span> done</span>
+</div>
+
+<label class="load-box" for="csvFile" id="loadBox">
+  <strong>📁 Tap to load CSV</strong>
+  <small id="csvStatus">Your data stays on this device</small>
+  <input type="file" id="csvFile" accept=".csv">
+</label>
+
+<!-- Next stop card -->
+<div class="next-card" id="nextCard">
+  <div class="label">Next Stop</div>
+  <div class="status-badge" id="ncStatus">—</div>
+  <div class="name" id="ncName">—</div>
+  <div class="address" id="ncAddress">—</div>
+  <div class="metrics">
+    <div class="metric">Reject: <strong id="ncReject">—</strong></div>
+    <div class="metric">Uptime: <strong id="ncUptime">—</strong></div>
+    <div class="metric">Activity: <strong id="ncVol">—</strong></div>
+  </div>
+  <div class="actions">
+    <button class="btn-call" id="btnCall">📞 Call</button>
+    <button class="btn-done" id="btnDone">✅ Done</button>
+    <button class="btn-skip" id="btnSkip">⏭️ Skip</button>
+  </div>
+</div>
+
+<button class="mic" id="micBtn" disabled>🎤</button>
+
+<div class="panel">
+  <div class="label">You said</div>
+  <div class="value" id="heard">—</div>
+</div>
+
+<div class="panel">
+  <div class="label">Angela</div>
+  <div class="value" id="reply">Tap the mic and say "Angela, next stop"</div>
+</div>
+
+<div class="commands">
+  <h3>Voice commands</h3>
+  <ul>
+    <li>"Angela, next stop"</li>
+    <li>"Angela, nearby"</li>
+    <li>"Angela, mark done"</li>
+    <li>"Angela, how many critical"</li>
+    <li>"Angela, stop"</li>
+  </ul>
+</div>
+
+<button class="reset-btn" id="resetRouteBtn">🔄 Reset Route Progress</button>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============ STATE ============
+let allData = [];
+let visited = new Set(JSON.parse(localStorage.getItem('angela_visited') || '[]'));
+let skipped = new Set(); // session-only, resets on reload
+let currentPos = null;
+let listening = false;
+let recognition = null;
+let currentStopId = null;
+
+const $ = id => document.getElementById(id);
+
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function speak(text) {
+  $('reply').textContent = text;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = 1.05;
+  u.lang = 'en-CA';
+  speechSynthesis.speak(u);
+}
+
+// ============ CSV PARSING ============
+$('csvFile').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const lines = ev.target.result.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) return toast('Empty CSV');
+    const headers = lines[0].split(',').map(h => h.replace(/"/g,'').trim());
+    allData = [];
+    for (let i = 1; i < lines.length; i++) {
+      const row = {};
+      const cells = lines[i].match(/(".*?"|[^,]+)(?=,|$)/g) || [];
+      cells.forEach((c, idx) => {
+        row[headers[idx]] = c.replace(/^"|"$/g, '').trim();
+      });
+      if (row.Store || row['Site Name']) allData.push(row);
+    }
+    $('csvStatus').textContent = `✅ ${allData.length} assets loaded`;
+    $('status').textContent = 'Ready. Tap the mic or use buttons below.';
+    $('micBtn').disabled = false;
+    $('progressBar').style.display = 'flex';
+    $('loadBox').style.display = 'none';
+    updateProgress();
+    renderNextStop();
+    speak(`Loaded ${allData.length} assets. Ready.`);
+  };
+  reader.readAsText(file);
+});
+
+// ============ FIELD ACCESSORS ============
+function getName(r)    { return r.Store || r['Site Name'] || 'Unknown'; }
+function getAddress(r) { return r.Address || ''; }
+function getCity(r)    { return r.City || ''; }
+function getPhone(r)   { return r['Store Phone Number'] || r['Phone Number'] || r.Phone || ''; }
+function getReject(r)  { return parseFloat(r['7 Day Reject %'] || r['7 Day Failure %'] || r.Reject7Day || 0); }
+function getUptime(r)  { return parseFloat(r['7 Day Uptime %'] || r.Uptime || 100); }
+function getVol(r)     { return parseFloat(r['1 Day TX'] || r['1 Day Activity'] || 0); }
+function getLat(r)     { return parseFloat(r.Latitude); }
+function getLon(r)     { return parseFloat(r.Longitude); }
+function getSiteId(r)  { return (r.Store || '') + '|' + (r.City || ''); }
+
+function getStatus(r) {
+  if (r['Kiosk State'] === 'Offline') return 'Offline';
+  const rej = getReject(r);
+  if (rej >= 8) return 'Critical';
+  if (rej >= 4) return 'Warning';
+  return 'Good';
+}
+
+// ============ NEXT STOP LOGIC ============
+// Priority: highest fee loss first (reject% × volume proxy). Skip visited + skipped.
+function getNextStop() {
+  const remaining = allData.filter(r => !visited.has(getSiteId(r)) && !skipped.has(getSiteId(r)));
+  if (!remaining.length) return null;
+  remaining.sort((a, b) => (getReject(b) * (getVol(b) + 1)) - (getReject(a) * (getVol(a) + 1)));
+  return remaining[0];
+}
+
+function renderNextStop() {
+  const r = getNextStop();
+  const card = $('nextCard');
+  if (!r) {
+    card.classList.remove('show');
+    currentStopId = null;
+    speak('All stops complete. Great work.');
+    return;
+  }
+  currentStopId = getSiteId(r);
+  card.classList.add('show');
+  const status = getStatus(r);
+  $('ncStatus').textContent = status;
+  $('ncStatus').className = 'status-badge ' + status;
+  $('ncName').textContent = getName(r);
+  const addr = [getAddress(r), getCity(r), r.Province || r.State || ''].filter(Boolean).join(', ');
+  $('ncAddress').textContent = addr || 'No address on file';
+  $('ncReject').textContent = getReject(r).toFixed(1) + '%';
+  $('ncUptime').textContent = getUptime(r).toFixed(0) + '%';
+  $('ncVol').textContent = getVol(r);
+  const phone = getPhone(r);
+  $('btnCall').disabled = !phone;
+  $('btnCall').style.opacity = phone ? '1' : '.4';
+}
+
+function updateProgress() {
+  $('visitedCount').textContent = visited.size;
+  $('totalCount').textContent = allData.length;
+}
+
+// ============ ACTIONS ============
+function markDone() {
+  if (!currentStopId) return;
+  visited.add(currentStopId);
+  localStorage.setItem('angela_visited', JSON.stringify([...visited]));
+  updateProgress();
+  const name = getName(allData.find(r => getSiteId(r) === currentStopId));
+  speak(`Marked ${name} done.`);
+  setTimeout(() => {
+    renderNextStop();
+    const next = getNextStop();
+    if (next) speak(`Next: ${getName(next)} in ${getCity(next)}.`);
+  }, 1500);
+}
+
+function skipStop() {
+  if (!currentStopId) return;
+  skipped.add(currentStopId);
+  const name = getName(allData.find(r => getSiteId(r) === currentStopId));
+  speak(`Skipped ${name}.`);
+  setTimeout(() => renderNextStop(), 1000);
+}
+
+function callStore() {
+  if (!currentStopId) return;
+  const r = allData.find(x => getSiteId(x) === currentStopId);
+  const phone = getPhone(r);
+  if (!phone) return toast('No phone number on file');
+  window.location.href = 'tel:' + phone.replace(/[^0-9+]/g, '');
+}
+
+$('btnDone').addEventListener('click', markDone);
+$('btnSkip').addEventListener('click', skipStop);
+$('btnCall').addEventListener('click', callStore);
+
+// ============ DISTANCE ============
+function distanceKm(lat1, lon1, lat2, lon2) {
+  const R = 6371, toRad = x => x * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function findNearby(km = 10) {
+  if (!currentPos) return null;
+  return allData
+    .filter(r => !isNaN(getLat(r)) && !isNaN(getLon(r)))
+    .map(r => ({ asset: r, dist: distanceKm(currentPos.lat, currentPos.lon, getLat(r), getLon(r)) }))
+    .filter(x => x.dist <= km)
+    .sort((a, b) => a.dist - b.dist);
+}
+
+// ============ INTENT PARSER ============
+function parseCommand(text) {
+  const t = text.toLowerCase();
+  if (!t.includes('angela')) return null;
+
+  if (/next stop|what'?s next/.test(t)) {
+    const r = getNextStop();
+    if (!r) return 'All stops complete. Great work.';
+    return `Next: ${getName(r)} in ${getCity(r)}. Status ${getStatus(r)}. Reject ${getReject(r).toFixed(1)} percent.`;
+  }
+
+  if (/nearby|near me|close/.test(t)) {
+    if (!currentPos) return 'I need your location. Please allow GPS and try again.';
+    const near = findNearby(10);
+    if (!near || !near.length) return 'No assets within 10 kilometres.';
+    const top = near.slice(0, 3).map(x => `${getName(x.asset)} at ${x.dist.toFixed(1)} kilometres`).join('. ');
+    return `Found ${near.length} nearby. Closest: ${top}.`;
+  }
+
+  if (/how many critical|critical count/.test(t)) {
+    const c = allData.filter(r => getStatus(r) === 'Critical').length;
+    return `${c} critical asset${c === 1 ? '' : 's'}.`;
+  }
+
+  if (/how many offline|offline count/.test(t)) {
+    const o = allData.filter(r => r['Kiosk State'] === 'Offline').length;
+    return `${o} offline asset${o === 1 ? '' : 's'}.`;
+  }
+
+  if (/mark.*done|i'?m done|finished|completed/.test(t)) {
+    markDone();
+    return null; // markDone speaks
+  }
+
+  if (/skip|next one|move on/.test(t)) {
+    skipStop();
+    return null;
+  }
+
+  if (/call|phone|dial/.test(t)) {
+    callStore();
+    return null;
+  }
+
+  if (/reset|start over/.test(t)) {
+    visited.clear();
+    skipped.clear();
+    localStorage.removeItem('angela_visited');
+    updateProgress();
+    renderNextStop();
+    return 'Route reset. All stops unmarked.';
+  }
+
+  if (/stop|quiet|shut up|goodbye/.test(t)) {
+    stopListening();
+    return 'Standing by.';
+  }
+
+  return "I didn't catch that. Try 'next stop' or 'nearby'.";
+}
+
+// ============ SPEECH RECOGNITION ============
+function startListening() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { toast('Voice not supported on this browser'); return; }
+
+  recognition = new SR();
+  recognition.lang = 'en-CA';
+  recognition.continuous = true;
+  recognition.interimResults = false;
+
+  recognition.onresult = e => {
+    const last = e.results[e.results.length - 1];
+    if (!last.isFinal) return;
+    const text = last[0].transcript.trim();
+    $('heard').textContent = text;
+    const reply = parseCommand(text);
+    if (reply) speak(reply);
+  };
+
+  recognition.onerror = e => {
+    if (e.error === 'not-allowed') toast('Mic permission denied');
+  };
+
+  recognition.onend = () => {
+    if (listening) { try { recognition.start(); } catch(_) {} }
+  };
+
+  recognition.start();
+  listening = true;
+  $('micBtn').classList.add('listening');
+  $('status').textContent = '🎙️ Listening… say "Angela"';
+  speak('Angela listening.');
+}
+
+function stopListening() {
+  listening = false;
+  if (recognition) recognition.stop();
+  $('micBtn').classList.remove('listening');
+  $('status').textContent = 'Paused. Tap the mic to resume.';
+}
+
+$('micBtn').addEventListener('click', () => {
+  if (!allData.length) return toast('Load CSV first');
+  listening ? stopListening() : startListening();
+});
+
+// ============ RESET ROUTE BUTTON ============
+$('resetRouteBtn').addEventListener('click', () => {
+  if (!confirm('Clear all visited stops? This cannot be undone.')) return;
+  visited.clear();
+  skipped.clear();
+  localStorage.removeItem('angela_visited');
+  updateProgress();
+  renderNextStop();
+  toast('Route reset');
+});
+
+// ============ GPS ============
+if (navigator.geolocation) {
+  navigator.geolocation.watchPosition(
+    pos => { currentPos = { lat: pos.coords.latitude, lon: pos.coords.longitude }; },
+    err => { console.warn('GPS denied:', err.message); },
+    { enableHighAccuracy: true, maximumAge: 60000 }
+  );
+}
+</script>
+</body>
+</html>
