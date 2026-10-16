@@ -256,7 +256,6 @@ let commitmentKioskIds = new Set();
 
 const $ = id => document.getElementById(id);
 
-// Load visited from localStorage safely
 try {
   const saved = JSON.parse(localStorage.getItem('angela_visited') || '[]');
   if (Array.isArray(saved)) visited = new Set(saved);
@@ -281,7 +280,7 @@ function speak(text) {
   } catch (e) { console.warn('Speech failed:', e); }
 }
 
-// ============ CSV PARSER (character-by-character, preserves empty fields) ============
+// ============ CSV PARSER ============
 function parseCSVLine(line) {
   const out = [];
   let cur = '';
@@ -303,10 +302,7 @@ function parseCSVLine(line) {
 }
 
 function cleanHeader(h) {
-  return String(h || '')
-    .replace(/^\uFEFF/, '')
-    .replace(/"/g, '')
-    .trim();
+  return String(h || '').replace(/^\uFEFF/, '').replace(/"/g, '').trim();
 }
 
 function cleanCell(c) {
@@ -373,7 +369,7 @@ $('csvFile').addEventListener('change', e => {
   reader.readAsText(file, 'UTF-8');
 });
 
-// ============ FIELD ACCESSORS (with alias fallbacks) ============
+// ============ FIELD ACCESSORS ============
 function firstVal(r, keys) {
   for (const k of keys) {
     if (r[k] !== undefined && r[k] !== null && String(r[k]).trim() !== '') {
@@ -383,14 +379,12 @@ function firstVal(r, keys) {
   return '';
 }
 
-function getName(r) {
-  return firstVal(r, ['Store', 'Site Name', 'Store Name']) || 'Unknown';
-}
-function getAddress(r)   { return firstVal(r, ['Address', 'Addr']); }
-function getCity(r)      { return firstVal(r, ['City']); }
-function getProvince(r)  { return firstVal(r, ['State', 'Province']); }
-function getZip(r)       { return firstVal(r, ['Zip', 'Postal Code']); }
-function getPhone(r)     { return firstVal(r, ['Store Phone Number', 'Phone Number', 'Phone']); }
+function getName(r)     { return firstVal(r, ['Store', 'Site Name', 'Store Name']) || 'Unknown'; }
+function getAddress(r)  { return firstVal(r, ['Address', 'Addr']); }
+function getCity(r)     { return firstVal(r, ['City']); }
+function getProvince(r) { return firstVal(r, ['State', 'Province']); }
+function getZip(r)      { return firstVal(r, ['Zip', 'Postal Code']); }
+function getPhone(r)    { return firstVal(r, ['Store Phone Number', 'Phone Number', 'Phone']); }
 
 function parseNum(v, fallback) {
   if (v === '' || v === null || v === undefined) return fallback;
@@ -414,9 +408,7 @@ function getLat(r) { return parseNum(firstVal(r, ['Latitude', 'Lat']), NaN); }
 function getLon(r) { return parseNum(firstVal(r, ['Longitude', 'Lng', 'Long']), NaN); }
 
 function getSiteId(r) {
-  const name = getName(r);
-  const city = getCity(r);
-  return `${name}|${city}`;
+  return `${getName(r)}|${getCity(r)}`;
 }
 
 function getFullAddress(r) {
@@ -429,14 +421,17 @@ function getFullAddress(r) {
 }
 
 function getStatus(r) {
-  if ((r['Kiosk State'] || '') === 'Offline') return 'Offline';
+  const state = String(firstVal(r, ['Kiosk State', 'Asset State', 'State']) || '').trim();
+  if (state === 'Offline') return 'Offline';
+  if (/^OOS/.test(state)) return 'Offline';
+  if (state === 'Full' || state === 'Paper Out' || state === 'Partner') return 'Warning';
   const rej = getReject(r);
   if (rej >= 8) return 'Critical';
   if (rej >= 4) return 'Warning';
   return 'Good';
 }
 
-// ============ COMMITMENT ============
+// ============ COMMITMENT (Alberta-only) ============
 function computeCommitmentKiosks() {
   const abKiosks = allData.filter(r =>
     (getProvince(r) || '').toString().trim().toUpperCase() === 'AB'
@@ -487,9 +482,13 @@ function distanceTo(r) {
   return distanceKm(currentPos.lat, currentPos.lon, getLat(r), getLon(r));
 }
 
-// ============ NEXT STOP (scored) ============
+// ============ NEXT STOP (Alberta-only routing) ============
 function getNextStop() {
-  let remaining = allData.filter(r => !visited.has(getSiteId(r)) && !skipped.has(getSiteId(r)));
+  let remaining = allData.filter(r =>
+    !visited.has(getSiteId(r)) &&
+    !skipped.has(getSiteId(r)) &&
+    (getProvince(r) || '').toUpperCase() === 'AB'
+  );
   if (!remaining.length) return null;
 
   if (commitmentModeOnly) {
@@ -503,7 +502,6 @@ function getNextStop() {
     }
   }
 
-  // No GPS → pure severity
   if (!currentPos) {
     remaining.sort((a, b) =>
       (getReject(b) * (getVol(b) + 1)) - (getReject(a) * (getVol(a) + 1))
@@ -513,9 +511,9 @@ function getNextStop() {
 
   const scored = remaining.map(r => {
     const severity = getReject(r) * (getVol(r) + 1);
-    const offlineBoost = (r['Kiosk State'] || '') === 'Offline' ? 1.5 : 1.0;
+    const offlineBoost = (firstVal(r, ['Kiosk State']) || '') === 'Offline' ? 1.5 : 1.0;
     const d = distanceTo(r);
-    const dist = d === null ? 40 : d;   // unknown coords → assume 40 km away
+    const dist = d === null ? 40 : d;
     const distancePenalty = Math.pow(0.985, dist);
 
     let commitBoost = 1.0;
@@ -659,7 +657,7 @@ $('commitChip').addEventListener('click', toggleCommitmentMode);
 function findNearby(km = 10) {
   if (!currentPos) return null;
   return allData
-    .filter(hasCoords)
+    .filter(r => hasCoords(r) && (getProvince(r) || '').toUpperCase() === 'AB')
     .map(r => ({ asset: r, dist: distanceTo(r) }))
     .filter(x => x.dist !== null && x.dist <= km)
     .sort((a, b) => a.dist - b.dist);
@@ -685,7 +683,7 @@ function parseCommand(text) {
   if (/nearby|near me|close/.test(t)) {
     if (!currentPos) return 'I need your location. Please allow GPS and try again.';
     const near = findNearby(10);
-    if (!near || !near.length) return 'No assets within 10 kilometres.';
+    if (!near || !near.length) return 'No Alberta assets within 10 kilometres.';
     const top = near.slice(0, 3)
       .map(x => `${getName(x.asset)} at ${x.dist.toFixed(1)} kilometres`)
       .join('. ');
@@ -723,7 +721,7 @@ function parseCommand(text) {
   }
 
   if (/how many offline|offline count/.test(t)) {
-    const o = allData.filter(r => (r['Kiosk State'] || '') === 'Offline').length;
+    const o = allData.filter(r => getStatus(r) === 'Offline').length;
     return `${o} offline asset${o === 1 ? '' : 's'}.`;
   }
 
