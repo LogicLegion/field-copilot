@@ -22,11 +22,10 @@
     background: #161b22; border-radius: 12px; padding: 10px 16px;
     font-size: 0.85rem; width: 100%; max-width: 420px;
     display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
   }
   .progress .count { color: #58a6ff; font-weight: 700; }
 
-  /* 🔧 PATCH: GPS status chip */
   .gps-chip {
     background: #161b22; border-radius: 20px; padding: 4px 12px;
     font-size: 0.75rem; color: #8b949e; margin-bottom: 10px;
@@ -34,9 +33,19 @@
   }
   .gps-chip.on  { color: #3fb950; border: 1px solid #238636; }
   .gps-chip.off { color: #8b949e; border: 1px solid #30363d; }
-  .gps-chip .dot {
-    width: 8px; height: 8px; border-radius: 50%; background: currentColor;
-    display: inline-block;
+  .gps-chip .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; display: inline-block; }
+
+  /* Commitment mode chip */
+  .commit-chip {
+    background: #161b22; border: 1px solid #30363d; border-radius: 20px;
+    padding: 6px 14px; font-size: 0.75rem; color: #8b949e;
+    margin-bottom: 10px; cursor: pointer; transition: all .2s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .commit-chip:hover { background: #21262d; }
+  .commit-chip.active {
+    background: rgba(218, 54, 51, .15); color: #ff7b72;
+    border-color: #da3633; font-weight: 700;
   }
 
   .load-box {
@@ -79,16 +88,23 @@
     font-size: 1.25rem; font-weight: 700; color: #e6edf3;
     margin-bottom: 4px; line-height: 1.25;
   }
-  .next-card .address {
-    font-size: 0.85rem; color: #8b949e; margin-bottom: 12px;
-  }
-  /* 🔧 PATCH: distance line */
+  .next-card .address { font-size: 0.85rem; color: #8b949e; margin-bottom: 12px; }
   .next-card .distance {
     font-size: 0.8rem; color: #58a6ff; margin-bottom: 10px; font-weight: 600;
   }
-  .next-card .metrics {
-    display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px;
+  .next-card .commitment-line {
+    font-size: 0.8rem; margin-bottom: 10px; font-weight: 600;
+    padding: 6px 10px; border-radius: 8px; display: none;
   }
+  .next-card .commitment-line.below {
+    background: rgba(218, 54, 51, .15); color: #ff7b72;
+    border-left: 3px solid #da3633;
+  }
+  .next-card .commitment-line.ok {
+    background: rgba(35, 134, 54, .15); color: #3fb950;
+    border-left: 3px solid #238636;
+  }
+  .next-card .metrics { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
   .metric {
     background: #0d1117; border-radius: 8px; padding: 6px 10px;
     font-size: 0.75rem; color: #8b949e;
@@ -105,10 +121,7 @@
   .status-badge.Good     { background: #238636; color: white; }
   .status-badge.Offline  { background: #6e7681; color: white; }
 
-  .actions {
-    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
-    margin-top: 4px;
-  }
+  .actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 4px; }
   .actions button {
     padding: 14px 8px; border-radius: 12px; border: none;
     font-size: 0.9rem; font-weight: 700; cursor: pointer;
@@ -157,10 +170,13 @@
 <h1>🎙️ Angela</h1>
 <div class="status" id="status">Upload your CSV to begin</div>
 
-<!-- 🔧 PATCH: GPS status chip -->
 <div class="gps-chip off" id="gpsChip">
   <span class="dot"></span>
   <span id="gpsText">GPS: waiting…</span>
+</div>
+
+<div class="commit-chip" id="commitChip" title="Tap to toggle Commitment Mode">
+  🎯 <span id="commitText">Commitment Mode: Off</span>
 </div>
 
 <div class="progress" id="progressBar" style="display:none;">
@@ -179,8 +195,8 @@
   <div class="status-badge" id="ncStatus">—</div>
   <div class="name" id="ncName">—</div>
   <div class="address" id="ncAddress">—</div>
-  <!-- 🔧 PATCH: distance line -->
   <div class="distance" id="ncDistance"></div>
+  <div class="commitment-line" id="ncCommitment"></div>
   <div class="metrics">
     <div class="metric">Reject: <strong id="ncReject">—</strong></div>
     <div class="metric">Uptime: <strong id="ncUptime">—</strong></div>
@@ -209,9 +225,14 @@
   <h3>Voice commands</h3>
   <ul>
     <li>"Angela, next stop"</li>
+    <li>"Angela, repeat"</li>
     <li>"Angela, nearby"</li>
     <li>"Angela, mark done"</li>
+    <li>"Angela, skip"</li>
     <li>"Angela, how many critical"</li>
+    <li>"Angela, commitment status"</li>
+    <li>"Angela, commitment mode"</li>
+    <li>"Angela, exit commitment mode"</li>
     <li>"Angela, stop"</li>
   </ul>
 </div>
@@ -229,6 +250,11 @@ let currentPos = null;
 let listening = false;
 let recognition = null;
 let currentStopId = null;
+let commitmentModeOnly = false;
+
+// Commitment
+const COMMITMENT_TARGET = 98;
+let commitmentKioskIds = new Set();
 
 const $ = id => document.getElementById(id);
 
@@ -254,12 +280,10 @@ $('csvFile').addEventListener('change', e => {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = ev => {
-    // 🔧 PATCH: strip BOM from the ENTIRE file before splitting
     const raw = ev.target.result.replace(/^\uFEFF/, '');
     const lines = raw.split(/\r?\n/).filter(l => l.trim());
     if (lines.length < 2) return toast('Empty CSV');
 
-    // 🔧 PATCH: strip BOM/quotes/spaces from each header too
     const headers = lines[0]
       .replace(/^\uFEFF/, '')
       .split(',')
@@ -272,15 +296,16 @@ $('csvFile').addEventListener('change', e => {
       cells.forEach((c, idx) => {
         if (headers[idx]) row[headers[idx]] = c.replace(/^"|"$/g, '').trim();
       });
-      // 🔧 PATCH: more lenient store-name detection
       if (row.Store || row['Site Name']) allData.push(row);
     }
 
-    // 🔧 PATCH: reject data that looks broken (no store names at all)
     if (!allData.length) {
       toast('CSV parsed but no store rows found');
       return;
     }
+
+    // Compute commitment kiosks (top 33% Alberta by 7-day volume)
+    computeCommitmentKiosks();
 
     $('csvStatus').textContent = `✅ ${allData.length} assets loaded`;
     $('status').textContent = 'Ready. Tap the mic or use buttons below.';
@@ -288,8 +313,14 @@ $('csvFile').addEventListener('change', e => {
     $('progressBar').style.display = 'flex';
     $('loadBox').style.display = 'none';
     updateProgress();
+    updateCommitChip();
     renderNextStop();
-    speak(`Loaded ${allData.length} assets. Ready.`);
+
+    const commitCount = commitmentKioskIds.size;
+    const msg = commitCount
+      ? `Loaded ${allData.length} assets. ${commitCount} commitment kiosks tracked. Ready.`
+      : `Loaded ${allData.length} assets. Ready.`;
+    speak(msg);
   };
   reader.readAsText(file, 'UTF-8');
 });
@@ -304,11 +335,11 @@ function getPhone(r)   { return r['Store Phone Number'] || r['Phone Number'] || 
 function getReject(r)  { return parseFloat(r['7 Day Reject %'] || r['7 Day Failure %'] || r.Reject7Day || 0); }
 function getUptime(r)  { return parseFloat(r['7 Day Uptime %'] || r.Uptime || 100); }
 function getVol(r)     { return parseFloat(r['1 Day TX'] || r['1 Day Activity'] || 0); }
+function getVol7(r)    { return parseFloat(r['7 Day TX'] || r['7 Day TX '] || 0); }
 function getLat(r)     { return parseFloat(r.Latitude); }
 function getLon(r)     { return parseFloat(r.Longitude); }
 function getSiteId(r)  { return (r.Store || '') + '|' + (r.City || ''); }
 
-// 🔧 PATCH: full address builder for display + speech
 function getFullAddress(r) {
   const parts = [
     getAddress(r),
@@ -326,6 +357,35 @@ function getStatus(r) {
   return 'Good';
 }
 
+// ============ COMMITMENT ============
+function computeCommitmentKiosks() {
+  const abKiosks = allData.filter(r =>
+    (r.State || r.Province || '').toString().trim().toUpperCase() === 'AB'
+  );
+  if (!abKiosks.length) {
+    commitmentKioskIds = new Set();
+    return;
+  }
+  const sorted = [...abKiosks].sort((a, b) => getVol7(b) - getVol7(a));
+  const top33 = Math.max(1, Math.ceil(sorted.length * 0.33));
+  commitmentKioskIds = new Set(sorted.slice(0, top33).map(r => getSiteId(r)));
+}
+
+function isCommitmentKiosk(r) { return commitmentKioskIds.has(getSiteId(r)); }
+function isBelowCommitment(r) {
+  return isCommitmentKiosk(r) && getUptime(r) < COMMITMENT_TARGET;
+}
+
+function getCommitmentStats() {
+  let above = 0, below = 0;
+  for (const r of allData) {
+    if (!isCommitmentKiosk(r)) continue;
+    if (getUptime(r) >= COMMITMENT_TARGET) above++;
+    else below++;
+  }
+  return { above, below, total: commitmentKioskIds.size };
+}
+
 // ============ DISTANCE ============
 function distanceKm(lat1, lon1, lat2, lon2) {
   const R = 6371, toRad = x => x * Math.PI / 180;
@@ -339,25 +399,30 @@ function hasCoords(r) {
   return !isNaN(lat) && !isNaN(lon) && lat !== 0 && lon !== 0;
 }
 
-// 🔧 PATCH: distance from current position to an asset, or null if unknown
 function distanceTo(r) {
   if (!currentPos || !hasCoords(r)) return null;
   return distanceKm(currentPos.lat, currentPos.lon, getLat(r), getLon(r));
 }
 
-// ============ NEXT STOP LOGIC (GPS-AWARE) ============
-// 🔧 PATCH: Hybrid priority — severity × distance penalty.
-//   0 km  → full score
-//   10 km → 86% of score
-//   30 km → 65% of score
-//   50 km → 47% of score
-// A 30 km site must be ~1.5x worse to beat a nearby one.
-// If GPS is unavailable, falls back to pure severity ranking.
+// ============ NEXT STOP LOGIC ============
+// Score = Reject × (Vol+1) × OfflineBoost × DistancePenalty × CommitmentBoost
 function getNextStop() {
-  const remaining = allData.filter(r => !visited.has(getSiteId(r)) && !skipped.has(getSiteId(r)));
+  let remaining = allData.filter(r => !visited.has(getSiteId(r)) && !skipped.has(getSiteId(r)));
   if (!remaining.length) return null;
 
-  // If we have no GPS, use severity only
+  // Commitment mode: restrict pool
+  if (commitmentModeOnly) {
+    const restricted = remaining.filter(isCommitmentKiosk);
+    if (restricted.length) {
+      remaining = restricted;
+    } else {
+      commitmentModeOnly = false;
+      updateCommitChip();
+      toast('All commitment kiosks visited — mode off');
+    }
+  }
+
+  // Fallback: no GPS → pure severity ranking
   if (!currentPos) {
     remaining.sort((a, b) => (getReject(b) * (getVol(b) + 1)) - (getReject(a) * (getVol(a) + 1)));
     return remaining[0];
@@ -367,10 +432,16 @@ function getNextStop() {
     const severity = getReject(r) * (getVol(r) + 1);
     const offlineBoost = r['Kiosk State'] === 'Offline' ? 1.5 : 1.0;
     const d = distanceTo(r);
-    // Unknown location → treat as 40 km away so it doesn't get picked over known-near ones
     const dist = d === null ? 40 : d;
     const distancePenalty = Math.pow(0.985, dist);
-    return { r, score: severity * offlineBoost * distancePenalty, dist: d };
+
+    // Commitment boost
+    let commitBoost = 1.0;
+    if (isCommitmentKiosk(r)) {
+      commitBoost = isBelowCommitment(r) ? 2.5 : 1.5;
+    }
+
+    return { r, score: severity * offlineBoost * distancePenalty * commitBoost, dist: d };
   });
 
   scored.sort((a, b) => b.score - a.score);
@@ -388,28 +459,39 @@ function renderNextStop() {
   }
   currentStopId = getSiteId(r);
   card.classList.add('show');
+
   const status = getStatus(r);
   $('ncStatus').textContent = status;
   $('ncStatus').className = 'status-badge ' + status;
   $('ncName').textContent = getName(r);
-  // 🔧 PATCH: show full address, never show store name as city
   $('ncAddress').textContent = getFullAddress(r) || 'No address on file';
 
-  // 🔧 PATCH: show distance
   const d = distanceTo(r);
   $('ncDistance').textContent = d === null
     ? '📍 Distance unknown (no GPS or no coordinates)'
     : `📍 ${d.toFixed(1)} km away`;
 
+  // Commitment line
+  const cEl = $('ncCommitment');
+  if (isCommitmentKiosk(r)) {
+    const below = isBelowCommitment(r);
+    cEl.style.display = 'block';
+    cEl.className = 'commitment-line ' + (below ? 'below' : 'ok');
+    cEl.textContent = below
+      ? `🎯 COMMITMENT KIOSK — ${getUptime(r).toFixed(1)}% (needs ${COMMITMENT_TARGET}%)`
+      : `🎯 Commitment kiosk — on target (${getUptime(r).toFixed(1)}%) ✅`;
+  } else {
+    cEl.style.display = 'none';
+  }
+
   $('ncReject').textContent = getReject(r).toFixed(1) + '%';
-  $('ncUptime').textContent = getUptime(r).toFixed(0) + '%';
+  $('ncUptime').textContent = getUptime(r).toFixed(1) + '%';
   $('ncVol').textContent = getVol(r);
   const phone = getPhone(r);
   $('btnCall').disabled = !phone;
   $('btnCall').style.opacity = phone ? '1' : '.4';
 }
 
-// 🔧 PATCH: build a spoken line that includes the address
 function spokenNextStop(r) {
   const name = getName(r);
   const addr = getFullAddress(r);
@@ -417,12 +499,31 @@ function spokenNextStop(r) {
   const rej = getReject(r).toFixed(1);
   const d = distanceTo(r);
   const distPart = d === null ? '' : ` ${d.toFixed(1)} kilometres away.`;
-  return `Next stop: ${name}.${distPart} Address: ${addr}. Status ${status}. Reject ${rej} percent.`;
+  const commitPart = isCommitmentKiosk(r)
+    ? (isBelowCommitment(r)
+        ? ` This is a commitment kiosk at ${getUptime(r).toFixed(1)} percent uptime, below target.`
+        : ` Commitment kiosk on target.`)
+    : '';
+  return `Next stop: ${name}.${distPart} Address: ${addr}. Status ${status}. Reject ${rej} percent.${commitPart}`;
 }
 
 function updateProgress() {
   $('visitedCount').textContent = visited.size;
   $('totalCount').textContent = allData.length;
+}
+
+function updateCommitChip() {
+  const chip = $('commitChip');
+  if (commitmentModeOnly) {
+    chip.classList.add('active');
+    $('commitText').textContent = `Commitment Mode: ON (${commitmentKioskIds.size} kiosks)`;
+  } else {
+    chip.classList.remove('active');
+    const count = commitmentKioskIds.size;
+    $('commitText').textContent = count
+      ? `Commitment Mode: Off (${count} tracked)`
+      : 'Commitment Mode: Off';
+  }
 }
 
 // ============ ACTIONS ============
@@ -457,9 +558,21 @@ function callStore() {
   window.location.href = 'tel:' + phone.replace(/[^0-9+]/g, '');
 }
 
+function toggleCommitmentMode() {
+  commitmentModeOnly = !commitmentModeOnly;
+  updateCommitChip();
+  renderNextStop();
+  if (commitmentModeOnly) {
+    speak(`Commitment mode on. Routing only to ${commitmentKioskIds.size} commitment kiosks.`);
+  } else {
+    speak('Commitment mode off. Routing all kiosks.');
+  }
+}
+
 $('btnDone').addEventListener('click', markDone);
 $('btnSkip').addEventListener('click', skipStop);
 $('btnCall').addEventListener('click', callStore);
+$('commitChip').addEventListener('click', toggleCommitmentMode);
 
 function findNearby(km = 10) {
   if (!currentPos) return null;
@@ -481,7 +594,6 @@ function parseCommand(text) {
     return spokenNextStop(r);
   }
 
-  // 🔧 PATCH: repeat the current stop on demand
   if (/repeat|say again|what was that/.test(t)) {
     const r = allData.find(x => getSiteId(x) === currentStopId);
     if (!r) return 'No current stop.';
@@ -494,6 +606,34 @@ function parseCommand(text) {
     if (!near || !near.length) return 'No assets within 10 kilometres.';
     const top = near.slice(0, 3).map(x => `${getName(x.asset)} at ${x.dist.toFixed(1)} kilometres`).join('. ');
     return `Found ${near.length} nearby. Closest: ${top}.`;
+  }
+
+  // Commitment status
+  if (/commitment status|how.*commitment|am i on track|how.*track/.test(t)) {
+    if (!commitmentKioskIds.size) return 'No commitment kiosks tracked. Load an Alberta CSV first.';
+    const s = getCommitmentStats();
+    return `Commitment status: ${s.above} of ${s.total} commitment kiosks at or above 98 percent. ${s.below} below target.`;
+  }
+
+  // Enter commitment mode
+  if (/commitment mode|only commitment|focus commitment|commitment on/.test(t)) {
+    if (!commitmentKioskIds.size) return 'No commitment kiosks tracked. Load an Alberta CSV first.';
+    if (!commitmentModeOnly) {
+      commitmentModeOnly = true;
+      updateCommitChip();
+      renderNextStop();
+    }
+    return `Commitment mode on. Routing only to ${commitmentKioskIds.size} commitment kiosks.`;
+  }
+
+  // Exit commitment mode
+  if (/exit commitment|commitment off|stop commitment|all kiosks/.test(t)) {
+    if (commitmentModeOnly) {
+      commitmentModeOnly = false;
+      updateCommitChip();
+      renderNextStop();
+    }
+    return 'Commitment mode off. Routing all kiosks.';
   }
 
   if (/how many critical|critical count/.test(t)) {
@@ -535,7 +675,7 @@ function parseCommand(text) {
     return 'Standing by.';
   }
 
-  return "I didn't catch that. Try 'next stop' or 'nearby'.";
+  return "I didn't catch that. Try 'next stop' or 'commitment status'.";
 }
 
 // ============ SPEECH RECOGNITION ============
@@ -584,7 +724,7 @@ $('micBtn').addEventListener('click', () => {
   listening ? stopListening() : startListening();
 });
 
-// ============ RESET ROUTE BUTTON ============
+// ============ RESET ROUTE ============
 $('resetRouteBtn').addEventListener('click', () => {
   if (!confirm('Clear all visited stops? This cannot be undone.')) return;
   visited.clear();
@@ -596,7 +736,6 @@ $('resetRouteBtn').addEventListener('click', () => {
 });
 
 // ============ GPS ============
-// 🔧 PATCH: update the GPS chip on the screen + re-render next stop when we get a fix
 function updateGpsChip(status, text) {
   const chip = $('gpsChip');
   chip.className = 'gps-chip ' + status;
@@ -610,7 +749,6 @@ if (navigator.geolocation) {
       const first = !currentPos;
       currentPos = { lat: pos.coords.latitude, lon: pos.coords.longitude };
       updateGpsChip('on', `GPS: ±${Math.round(pos.coords.accuracy)}m`);
-      // 🔧 PATCH: re-render next stop when we get first fix
       if (first && allData.length) {
         renderNextStop();
         toast('GPS locked — route now sorted by distance');
