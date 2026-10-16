@@ -35,7 +35,6 @@
   .gps-chip.off { color: #8b949e; border: 1px solid #30363d; }
   .gps-chip .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; display: inline-block; }
 
-  /* Commitment mode chip */
   .commit-chip {
     background: #161b22; border: 1px solid #30363d; border-radius: 20px;
     padding: 6px 14px; font-size: 0.75rem; color: #8b949e;
@@ -244,7 +243,7 @@
 <script>
 // ============ STATE ============
 let allData = [];
-let visited = new Set(JSON.parse(localStorage.getItem('angela_visited') || '[]'));
+let visited = new Set();
 let skipped = new Set();
 let currentPos = null;
 let listening = false;
@@ -252,93 +251,173 @@ let recognition = null;
 let currentStopId = null;
 let commitmentModeOnly = false;
 
-// Commitment
 const COMMITMENT_TARGET = 98;
 let commitmentKioskIds = new Set();
 
 const $ = id => document.getElementById(id);
 
+// Load visited from localStorage safely
+try {
+  const saved = JSON.parse(localStorage.getItem('angela_visited') || '[]');
+  if (Array.isArray(saved)) visited = new Set(saved);
+} catch (e) { visited = new Set(); }
+
 function toast(msg) {
   const t = $('toast');
   t.textContent = msg;
   t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2000);
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
 }
 
 function speak(text) {
   $('reply').textContent = text;
-  speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.rate = 1.05;
-  u.lang = 'en-CA';
-  speechSynthesis.speak(u);
+  try {
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 1.05;
+    u.lang = 'en-CA';
+    window.speechSynthesis.speak(u);
+  } catch (e) { console.warn('Speech failed:', e); }
 }
 
-// ============ CSV PARSING ============
+// ============ CSV PARSER (character-by-character, preserves empty fields) ============
+function parseCSVLine(line) {
+  const out = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
+      else inQuotes = !inQuotes;
+    } else if (ch === ',' && !inQuotes) {
+      out.push(cur);
+      cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  out.push(cur);
+  return out;
+}
+
+function cleanHeader(h) {
+  return String(h || '')
+    .replace(/^\uFEFF/, '')
+    .replace(/"/g, '')
+    .trim();
+}
+
+function cleanCell(c) {
+  if (c === null || c === undefined) return '';
+  return String(c).replace(/^"|"$/g, '').trim();
+}
+
+// ============ CSV UPLOAD HANDLER ============
 $('csvFile').addEventListener('change', e => {
   const file = e.target.files[0];
   if (!file) return;
+  if (!file.name.toLowerCase().endsWith('.csv')) {
+    toast('Please upload a .csv file');
+    return;
+  }
   const reader = new FileReader();
   reader.onload = ev => {
-    const raw = ev.target.result.replace(/^\uFEFF/, '');
-    const lines = raw.split(/\r?\n/).filter(l => l.trim());
-    if (lines.length < 2) return toast('Empty CSV');
+    try {
+      const raw = String(ev.target.result || '').replace(/^\uFEFF/, '');
+      const lines = raw.split(/\r?\n/).filter(l => l.trim());
+      if (lines.length < 2) { toast('Empty or invalid CSV'); return; }
 
-    const headers = lines[0]
-      .replace(/^\uFEFF/, '')
-      .split(',')
-      .map(h => h.replace(/"/g, '').trim());
+      const headers = parseCSVLine(lines[0]).map(cleanHeader);
+      if (!headers.length) { toast('No headers found'); return; }
 
-    allData = [];
-    for (let i = 1; i < lines.length; i++) {
-      const row = {};
-      const cells = lines[i].match(/(".*?"|[^,]+)(?=,|$)/g) || [];
-      cells.forEach((c, idx) => {
-        if (headers[idx]) row[headers[idx]] = c.replace(/^"|"$/g, '').trim();
-      });
-      if (row.Store || row['Site Name']) allData.push(row);
+      allData = [];
+      for (let i = 1; i < lines.length; i++) {
+        const cells = parseCSVLine(lines[i]);
+        const row = {};
+        for (let j = 0; j < headers.length; j++) {
+          const h = headers[j];
+          if (h) row[h] = cleanCell(cells[j]);
+        }
+        if (row.Store || row['Site Name']) allData.push(row);
+      }
+
+      if (!allData.length) {
+        toast('No store rows found in CSV');
+        return;
+      }
+
+      computeCommitmentKiosks();
+
+      $('csvStatus').textContent = `✅ ${allData.length} assets loaded`;
+      $('status').textContent = 'Ready. Tap the mic or use buttons below.';
+      $('micBtn').disabled = false;
+      $('progressBar').style.display = 'flex';
+      $('loadBox').style.display = 'none';
+      updateProgress();
+      updateCommitChip();
+      renderNextStop();
+
+      const cc = commitmentKioskIds.size;
+      const msg = cc
+        ? `Loaded ${allData.length} assets. ${cc} commitment kiosks tracked. Ready.`
+        : `Loaded ${allData.length} assets. Ready.`;
+      speak(msg);
+    } catch (err) {
+      console.error(err);
+      toast('Failed to parse CSV');
     }
-
-    if (!allData.length) {
-      toast('CSV parsed but no store rows found');
-      return;
-    }
-
-    // Compute commitment kiosks (top 33% Alberta by 7-day volume)
-    computeCommitmentKiosks();
-
-    $('csvStatus').textContent = `✅ ${allData.length} assets loaded`;
-    $('status').textContent = 'Ready. Tap the mic or use buttons below.';
-    $('micBtn').disabled = false;
-    $('progressBar').style.display = 'flex';
-    $('loadBox').style.display = 'none';
-    updateProgress();
-    updateCommitChip();
-    renderNextStop();
-
-    const commitCount = commitmentKioskIds.size;
-    const msg = commitCount
-      ? `Loaded ${allData.length} assets. ${commitCount} commitment kiosks tracked. Ready.`
-      : `Loaded ${allData.length} assets. Ready.`;
-    speak(msg);
   };
+  reader.onerror = () => toast('Error reading file');
   reader.readAsText(file, 'UTF-8');
 });
 
-// ============ FIELD ACCESSORS ============
-function getName(r)    { return r.Store || r['Site Name'] || 'Unknown'; }
-function getAddress(r) { return r.Address || ''; }
-function getCity(r)    { return r.City || ''; }
-function getProvince(r) { return r.State || r.Province || ''; }
-function getZip(r)     { return r.Zip || ''; }
-function getPhone(r)   { return r['Store Phone Number'] || r['Phone Number'] || r.Phone || ''; }
-function getReject(r)  { return parseFloat(r['7 Day Reject %'] || r['7 Day Failure %'] || r.Reject7Day || 0); }
-function getUptime(r)  { return parseFloat(r['7 Day Uptime %'] || r.Uptime || 100); }
-function getVol(r)     { return parseFloat(r['1 Day TX'] || r['1 Day Activity'] || 0); }
-function getVol7(r)    { return parseFloat(r['7 Day TX'] || r['7 Day TX '] || 0); }
-function getLat(r)     { return parseFloat(r.Latitude); }
-function getLon(r)     { return parseFloat(r.Longitude); }
-function getSiteId(r)  { return (r.Store || '') + '|' + (r.City || ''); }
+// ============ FIELD ACCESSORS (with alias fallbacks) ============
+function firstVal(r, keys) {
+  for (const k of keys) {
+    if (r[k] !== undefined && r[k] !== null && String(r[k]).trim() !== '') {
+      return r[k];
+    }
+  }
+  return '';
+}
+
+function getName(r) {
+  return firstVal(r, ['Store', 'Site Name', 'Store Name']) || 'Unknown';
+}
+function getAddress(r)   { return firstVal(r, ['Address', 'Addr']); }
+function getCity(r)      { return firstVal(r, ['City']); }
+function getProvince(r)  { return firstVal(r, ['State', 'Province']); }
+function getZip(r)       { return firstVal(r, ['Zip', 'Postal Code']); }
+function getPhone(r)     { return firstVal(r, ['Store Phone Number', 'Phone Number', 'Phone']); }
+
+function parseNum(v, fallback) {
+  if (v === '' || v === null || v === undefined) return fallback;
+  const n = parseFloat(String(v).replace('%', '').trim());
+  return isNaN(n) ? fallback : n;
+}
+
+function getReject(r) {
+  return parseNum(firstVal(r, ['7 Day Reject %', '7 Day Failure %', 'Reject7Day', '1 Day Reject %']), 0);
+}
+function getUptime(r) {
+  return parseNum(firstVal(r, ['7 Day Uptime %', 'Uptime7Day', 'Uptime', 'Uptime %']), 100);
+}
+function getVol(r) {
+  return parseNum(firstVal(r, ['1 Day TX', '1 Day Activity', 'Volume']), 0);
+}
+function getVol7(r) {
+  return parseNum(firstVal(r, ['7 Day TX', '7 Day Activity']), 0);
+}
+function getLat(r) { return parseNum(firstVal(r, ['Latitude', 'Lat']), NaN); }
+function getLon(r) { return parseNum(firstVal(r, ['Longitude', 'Lng', 'Long']), NaN); }
+
+function getSiteId(r) {
+  const name = getName(r);
+  const city = getCity(r);
+  return `${name}|${city}`;
+}
 
 function getFullAddress(r) {
   const parts = [
@@ -350,7 +429,7 @@ function getFullAddress(r) {
 }
 
 function getStatus(r) {
-  if (r['Kiosk State'] === 'Offline') return 'Offline';
+  if ((r['Kiosk State'] || '') === 'Offline') return 'Offline';
   const rej = getReject(r);
   if (rej >= 8) return 'Critical';
   if (rej >= 4) return 'Warning';
@@ -360,7 +439,7 @@ function getStatus(r) {
 // ============ COMMITMENT ============
 function computeCommitmentKiosks() {
   const abKiosks = allData.filter(r =>
-    (r.State || r.Province || '').toString().trim().toUpperCase() === 'AB'
+    (getProvince(r) || '').toString().trim().toUpperCase() === 'AB'
   );
   if (!abKiosks.length) {
     commitmentKioskIds = new Set();
@@ -368,10 +447,12 @@ function computeCommitmentKiosks() {
   }
   const sorted = [...abKiosks].sort((a, b) => getVol7(b) - getVol7(a));
   const top33 = Math.max(1, Math.ceil(sorted.length * 0.33));
-  commitmentKioskIds = new Set(sorted.slice(0, top33).map(r => getSiteId(r)));
+  commitmentKioskIds = new Set(sorted.slice(0, top33).map(getSiteId));
 }
 
-function isCommitmentKiosk(r) { return commitmentKioskIds.has(getSiteId(r)); }
+function isCommitmentKiosk(r) {
+  return commitmentKioskIds.has(getSiteId(r));
+}
 function isBelowCommitment(r) {
   return isCommitmentKiosk(r) && getUptime(r) < COMMITMENT_TARGET;
 }
@@ -390,7 +471,9 @@ function getCommitmentStats() {
 function distanceKm(lat1, lon1, lat2, lon2) {
   const R = 6371, toRad = x => x * Math.PI / 180;
   const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+            Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -404,13 +487,11 @@ function distanceTo(r) {
   return distanceKm(currentPos.lat, currentPos.lon, getLat(r), getLon(r));
 }
 
-// ============ NEXT STOP LOGIC ============
-// Score = Reject × (Vol+1) × OfflineBoost × DistancePenalty × CommitmentBoost
+// ============ NEXT STOP (scored) ============
 function getNextStop() {
   let remaining = allData.filter(r => !visited.has(getSiteId(r)) && !skipped.has(getSiteId(r)));
   if (!remaining.length) return null;
 
-  // Commitment mode: restrict pool
   if (commitmentModeOnly) {
     const restricted = remaining.filter(isCommitmentKiosk);
     if (restricted.length) {
@@ -422,26 +503,26 @@ function getNextStop() {
     }
   }
 
-  // Fallback: no GPS → pure severity ranking
+  // No GPS → pure severity
   if (!currentPos) {
-    remaining.sort((a, b) => (getReject(b) * (getVol(b) + 1)) - (getReject(a) * (getVol(a) + 1)));
+    remaining.sort((a, b) =>
+      (getReject(b) * (getVol(b) + 1)) - (getReject(a) * (getVol(a) + 1))
+    );
     return remaining[0];
   }
 
   const scored = remaining.map(r => {
     const severity = getReject(r) * (getVol(r) + 1);
-    const offlineBoost = r['Kiosk State'] === 'Offline' ? 1.5 : 1.0;
+    const offlineBoost = (r['Kiosk State'] || '') === 'Offline' ? 1.5 : 1.0;
     const d = distanceTo(r);
-    const dist = d === null ? 40 : d;
+    const dist = d === null ? 40 : d;   // unknown coords → assume 40 km away
     const distancePenalty = Math.pow(0.985, dist);
 
-    // Commitment boost
     let commitBoost = 1.0;
     if (isCommitmentKiosk(r)) {
       commitBoost = isBelowCommitment(r) ? 2.5 : 1.5;
     }
-
-    return { r, score: severity * offlineBoost * distancePenalty * commitBoost, dist: d };
+    return { r, score: severity * offlineBoost * distancePenalty * commitBoost };
   });
 
   scored.sort((a, b) => b.score - a.score);
@@ -471,7 +552,6 @@ function renderNextStop() {
     ? '📍 Distance unknown (no GPS or no coordinates)'
     : `📍 ${d.toFixed(1)} km away`;
 
-  // Commitment line
   const cEl = $('ncCommitment');
   if (isCommitmentKiosk(r)) {
     const below = isBelowCommitment(r);
@@ -487,6 +567,7 @@ function renderNextStop() {
   $('ncReject').textContent = getReject(r).toFixed(1) + '%';
   $('ncUptime').textContent = getUptime(r).toFixed(1) + '%';
   $('ncVol').textContent = getVol(r);
+
   const phone = getPhone(r);
   $('btnCall').disabled = !phone;
   $('btnCall').style.opacity = phone ? '1' : '.4';
@@ -516,12 +597,12 @@ function updateCommitChip() {
   const chip = $('commitChip');
   if (commitmentModeOnly) {
     chip.classList.add('active');
-    $('commitText').textContent = `Commitment Mode: ON (${commitmentKioskIds.size} kiosks)`;
+    $('commitText').textContent = `Commitment Mode: ON (${commitmentKioskIds.size})`;
   } else {
     chip.classList.remove('active');
-    const count = commitmentKioskIds.size;
-    $('commitText').textContent = count
-      ? `Commitment Mode: Off (${count} tracked)`
+    const c = commitmentKioskIds.size;
+    $('commitText').textContent = c
+      ? `Commitment Mode: Off (${c} tracked)`
       : 'Commitment Mode: Off';
   }
 }
@@ -530,7 +611,7 @@ function updateCommitChip() {
 function markDone() {
   if (!currentStopId) return;
   visited.add(currentStopId);
-  localStorage.setItem('angela_visited', JSON.stringify([...visited]));
+  try { localStorage.setItem('angela_visited', JSON.stringify([...visited])); } catch (e) {}
   updateProgress();
   const done = allData.find(r => getSiteId(r) === currentStopId);
   const name = done ? getName(done) : 'stop';
@@ -538,8 +619,8 @@ function markDone() {
   setTimeout(() => {
     renderNextStop();
     const next = getNextStop();
-    if (next) speak(spokenNextStop(next));
-  }, 1800);
+    if (next) setTimeout(() => speak(spokenNextStop(next)), 200);
+  }, 2000);
 }
 
 function skipStop() {
@@ -553,9 +634,10 @@ function skipStop() {
 function callStore() {
   if (!currentStopId) return;
   const r = allData.find(x => getSiteId(x) === currentStopId);
+  if (!r) return;
   const phone = getPhone(r);
   if (!phone) return toast('No phone number on file');
-  window.location.href = 'tel:' + phone.replace(/[^0-9+]/g, '');
+  window.location.href = 'tel:' + String(phone).replace(/[^0-9+]/g, '');
 }
 
 function toggleCommitmentMode() {
@@ -585,7 +667,7 @@ function findNearby(km = 10) {
 
 // ============ INTENT PARSER ============
 function parseCommand(text) {
-  const t = text.toLowerCase();
+  const t = String(text).toLowerCase();
   if (!t.includes('angela')) return null;
 
   if (/next stop|what'?s next|where.*next/.test(t)) {
@@ -604,18 +686,27 @@ function parseCommand(text) {
     if (!currentPos) return 'I need your location. Please allow GPS and try again.';
     const near = findNearby(10);
     if (!near || !near.length) return 'No assets within 10 kilometres.';
-    const top = near.slice(0, 3).map(x => `${getName(x.asset)} at ${x.dist.toFixed(1)} kilometres`).join('. ');
+    const top = near.slice(0, 3)
+      .map(x => `${getName(x.asset)} at ${x.dist.toFixed(1)} kilometres`)
+      .join('. ');
     return `Found ${near.length} nearby. Closest: ${top}.`;
   }
 
-  // Commitment status
   if (/commitment status|how.*commitment|am i on track|how.*track/.test(t)) {
     if (!commitmentKioskIds.size) return 'No commitment kiosks tracked. Load an Alberta CSV first.';
     const s = getCommitmentStats();
     return `Commitment status: ${s.above} of ${s.total} commitment kiosks at or above 98 percent. ${s.below} below target.`;
   }
 
-  // Enter commitment mode
+  if (/exit commitment|commitment off|stop commitment|all kiosks/.test(t)) {
+    if (commitmentModeOnly) {
+      commitmentModeOnly = false;
+      updateCommitChip();
+      renderNextStop();
+    }
+    return 'Commitment mode off. Routing all kiosks.';
+  }
+
   if (/commitment mode|only commitment|focus commitment|commitment on/.test(t)) {
     if (!commitmentKioskIds.size) return 'No commitment kiosks tracked. Load an Alberta CSV first.';
     if (!commitmentModeOnly) {
@@ -626,23 +717,13 @@ function parseCommand(text) {
     return `Commitment mode on. Routing only to ${commitmentKioskIds.size} commitment kiosks.`;
   }
 
-  // Exit commitment mode
-  if (/exit commitment|commitment off|stop commitment|all kiosks/.test(t)) {
-    if (commitmentModeOnly) {
-      commitmentModeOnly = false;
-      updateCommitChip();
-      renderNextStop();
-    }
-    return 'Commitment mode off. Routing all kiosks.';
-  }
-
   if (/how many critical|critical count/.test(t)) {
     const c = allData.filter(r => getStatus(r) === 'Critical').length;
     return `${c} critical asset${c === 1 ? '' : 's'}.`;
   }
 
   if (/how many offline|offline count/.test(t)) {
-    const o = allData.filter(r => r['Kiosk State'] === 'Offline').length;
+    const o = allData.filter(r => (r['Kiosk State'] || '') === 'Offline').length;
     return `${o} offline asset${o === 1 ? '' : 's'}.`;
   }
 
@@ -664,7 +745,7 @@ function parseCommand(text) {
   if (/reset|start over/.test(t)) {
     visited.clear();
     skipped.clear();
-    localStorage.removeItem('angela_visited');
+    try { localStorage.removeItem('angela_visited'); } catch (e) {}
     updateProgress();
     renderNextStop();
     return 'Route reset. All stops unmarked.';
@@ -683,7 +764,13 @@ function startListening() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) { toast('Voice not supported on this browser'); return; }
 
-  recognition = new SR();
+  try {
+    recognition = new SR();
+  } catch (e) {
+    toast('Could not start speech recognition');
+    return;
+  }
+
   recognition.lang = 'en-CA';
   recognition.continuous = true;
   recognition.interimResults = false;
@@ -699,22 +786,28 @@ function startListening() {
 
   recognition.onerror = e => {
     if (e.error === 'not-allowed') toast('Mic permission denied');
+    else if (e.error === 'no-speech') { /* silent */ }
+    else console.warn('Speech error:', e.error);
   };
 
   recognition.onend = () => {
-    if (listening) { try { recognition.start(); } catch(_) {} }
+    if (listening) { try { recognition.start(); } catch (e) {} }
   };
 
-  recognition.start();
-  listening = true;
-  $('micBtn').classList.add('listening');
-  $('status').textContent = '🎙️ Listening… say "Angela"';
-  speak('Angela listening.');
+  try {
+    recognition.start();
+    listening = true;
+    $('micBtn').classList.add('listening');
+    $('status').textContent = '🎙️ Listening… say "Angela"';
+    speak('Angela listening.');
+  } catch (e) {
+    toast('Could not start listening');
+  }
 }
 
 function stopListening() {
   listening = false;
-  if (recognition) recognition.stop();
+  try { if (recognition) recognition.stop(); } catch (e) {}
   $('micBtn').classList.remove('listening');
   $('status').textContent = 'Paused. Tap the mic to resume.';
 }
@@ -729,7 +822,7 @@ $('resetRouteBtn').addEventListener('click', () => {
   if (!confirm('Clear all visited stops? This cannot be undone.')) return;
   visited.clear();
   skipped.clear();
-  localStorage.removeItem('angela_visited');
+  try { localStorage.removeItem('angela_visited'); } catch (e) {}
   updateProgress();
   renderNextStop();
   toast('Route reset');
