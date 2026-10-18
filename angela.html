@@ -66,7 +66,6 @@
   .mic:active { transform: scale(.95); }
   .mic.listening { background: #238636; animation: pulse 1.5s infinite; }
   .mic.thinking { background: #d29922; animation: pulse 1.5s infinite; }
-  .mic.waiting { background: #6e7681; }
   .mic:disabled { opacity: .35; cursor: not-allowed; }
   @keyframes pulse {
     0%   { box-shadow: 0 0 0 0 rgba(35,134,54,.7); }
@@ -219,22 +218,22 @@
 
 <div class="panel">
   <div class="label">Angela</div>
-  <div class="value" id="reply">Tap the mic and say "Angela, next stop"</div>
+  <div class="value" id="reply">Tap the mic, wait for the beep, then talk normally.</div>
 </div>
 
 <div class="commands">
-  <h3>Voice commands</h3>
+  <h3>Example Conversational Commands</h3>
   <ul>
-    <li>"Angela, next stop"</li>
-    <li>"Angela, what kind of day is it?"</li>
-    <li>"Angela, list route"</li>
-    <li>"Angela, status report"</li>
-    <li>"Angela, what's the worst kiosk?"</li>
-    <li>"Angela, how many stops left?"</li>
-    <li>"Angela, nearby"</li>
-    <li>"Angela, mark done" / "skip"</li>
-    <li>"Angela, commitment mode"</li>
-    <li>"Angela, stop"</li>
+    <li>"What's my next stop?"</li>
+    <li>"Is it an Edmonton day or a Calgary day?"</li>
+    <li>"List my route"</li>
+    <li>"Give me a status report"</li>
+    <li>"Where is the worst kiosk?"</li>
+    <li>"How many stops are left?"</li>
+    <li>"What's nearby?"</li>
+    <li>"I'm done here" or "Skip this one"</li>
+    <li>"Turn on commitment mode"</li>
+    <li>"Call the store"</li>
   </ul>
 </div>
 
@@ -252,8 +251,6 @@ let listening = false;
 let recognition = null;
 let currentStopId = null;
 let commitmentModeOnly = false;
-let isSpeaking = false;
-let wakeTimer = null;
 
 const COMMITMENT_TARGET = 98;
 let commitmentKioskIds = new Set();
@@ -277,8 +274,7 @@ function speak(text) {
   $('reply').textContent = text;
   try {
     window.speechSynthesis.cancel();
-    isSpeaking = true;
-    $('micBtn').classList.remove('listening', 'waiting');
+    $('micBtn').classList.remove('listening');
     $('micBtn').classList.add('thinking');
     
     const u = new SpeechSynthesisUtterance(text);
@@ -286,16 +282,12 @@ function speak(text) {
     u.lang = 'en-CA';
     
     u.onend = () => {
-      isSpeaking = false;
       $('micBtn').classList.remove('thinking');
-      if (listening) {
-        $('micBtn').classList.add('listening');
-      }
+      $('micBtn').classList.add('listening');
     };
     
     window.speechSynthesis.speak(u);
   } catch (e) { 
-    isSpeaking = false;
     console.warn('Speech failed:', e); 
   }
 }
@@ -367,7 +359,7 @@ $('csvFile').addEventListener('change', e => {
       computeCommitmentKiosks();
 
       $('csvStatus').textContent = `✅ ${allData.length} assets loaded`;
-      $('status').textContent = 'Ready. Tap the mic or use buttons below.';
+      $('status').textContent = 'Ready. Tap the mic and talk.';
       $('micBtn').disabled = false;
       $('progressBar').style.display = 'flex';
       $('loadBox').style.display = 'none';
@@ -379,7 +371,12 @@ $('csvFile').addEventListener('change', e => {
       const msg = cc
         ? `Loaded ${allData.length} assets. ${cc} commitment kiosks tracked. Ready.`
         : `Loaded ${allData.length} assets. Ready.`;
-      speak(msg);
+      
+      // Temporarily speak without changing mic state logic since we aren't listening yet
+      const u = new SpeechSynthesisUtterance(msg);
+      u.rate = 1.05; u.lang = 'en-CA';
+      window.speechSynthesis.speak(u);
+
     } catch (err) {
       console.error(err);
       toast('Failed to parse CSV');
@@ -422,7 +419,7 @@ function getVol(r) {
   return parseNum(firstVal(r, ['1 Day TX', '1 Day Activity', 'Volume']), 0);
 }
 function getVol7(r) {
-  return parseNum(firstVal(r, ['7 Day TX', '7 Day Activity']), 0);
+  return parseFloat(firstVal(r, ['7 Day TX', '7 Day Activity']), 0);
 }
 function getLat(r) { return parseNum(firstVal(r, ['Latitude', 'Lat']), NaN); }
 function getLon(r) { return parseNum(firstVal(r, ['Longitude', 'Lng', 'Long']), NaN); }
@@ -636,8 +633,6 @@ function markDone() {
   speak(`Marked ${name} done.`);
   setTimeout(() => {
     renderNextStop();
-    const next = getNextStop();
-    if (next) setTimeout(() => speak(spokenNextStop(next)), 200);
   }, 2000);
 }
 
@@ -654,7 +649,7 @@ function callStore() {
   const r = allData.find(x => getSiteId(x) === currentStopId);
   if (!r) return;
   const phone = getPhone(r);
-  if (!phone) return toast('No phone number on file');
+  if (!phone) return speak('No phone number on file for this store.');
   window.location.href = 'tel:' + String(phone).replace(/[^0-9+]/g, '');
 }
 
@@ -683,63 +678,18 @@ function findNearby(km = 10) {
     .sort((a, b) => a.dist - b.dist);
 }
 
-// ============ INTENT PARSER ============
+// ============ CONVERSATIONAL INTENT PARSER ============
 function parseCommand(text) {
   const t = String(text).toLowerCase();
-  if (!t.includes('angela')) return null;
-
-  if (/next stop|what'?s next|where.*next/.test(t)) {
+  
+  // 1. NEXT STOP / ROUTE LIST
+  if (t.match(/next|what'?s next|where to|take me/)) {
     const r = getNextStop();
     if (!r) return 'All stops complete. Great work.';
     return spokenNextStop(r);
   }
 
-  if (/repeat|say again|what was that/.test(t)) {
-    const r = allData.find(x => getSiteId(x) === currentStopId);
-    if (!r) return 'No current stop.';
-    return spokenNextStop(r);
-  }
-
-  // EDMONTON vs CALGARY (Based on worst Commitment Kiosks)
-  if (/what kind of day|city day|edmonton day|calgary day|where should i focus/.test(t)) {
-    let remaining = allData.filter(r => 
-      !visited.has(getSiteId(r)) && 
-      !skipped.has(getSiteId(r)) && 
-      (getProvince(r) || '').toUpperCase() === 'AB' &&
-      isCommitmentKiosk(r) // ONLY look at commitment kiosks
-    );
-    
-    if (!remaining.length) return 'You have completed all your commitment kiosks. Great work.';
-
-    // Sort by absolute worst fire (ignore distance for this question)
-    remaining.sort((a, b) => {
-      const sevA = getReject(a) * (getVol(a) + 1);
-      const sevB = getReject(b) * (getVol(b) + 1);
-      return sevB - sevA;
-    });
-
-    // Look at the top 3 worst kiosks on the commitment list
-    const topWorst = remaining.slice(0, 3);
-    const cityCounts = {};
-    topWorst.forEach(r => {
-      const c = getCity(r).trim() || 'Unknown';
-      cityCounts[c] = (cityCounts[c] || 0) + 1;
-    });
-
-    let topCity = '', topCount = 0;
-    for (const [city, count] of Object.entries(cityCounts)) {
-      if (count > topCount) { topCity = city; topCount = count; }
-    }
-
-    if (topCount >= 2) {
-      return `It's a ${topCity} day. The most critical commitment kiosks are in ${topCity}.`;
-    } else {
-      return `It's a split day. Your worst commitment kiosks are spread between ${Object.keys(cityCounts).join(' and ')}.`;
-    }
-  }
-
-  // LIST ROUTE
-  if (/route|list.*stops|plan.*day|all.*stops/.test(t)) {
+  if (t.match(/route|list|plan|stops/)) {
     let remaining = allData.filter(r =>
       !visited.has(getSiteId(r)) && !skipped.has(getSiteId(r)) && (getProvince(r) || '').toUpperCase() === 'AB'
     );
@@ -764,11 +714,47 @@ function parseCommand(text) {
       const dist = distanceTo(r);
       return `${i + 1}. ${getName(r)}${dist !== null ? ` (${dist.toFixed(1)} km)` : ''}`;
     });
-    return `Your next 5 stops are: ${routeNames.join('. ')}. There are ${remaining.length} stops remaining in total.`;
+    return `Your next 5 stops are: ${routeNames.join('. ')}. There are ${remaining.length} stops remaining.`;
   }
 
-  // WORST KIOSK (Biggest Fire)
-  if (/worst kiosk|biggest problem|most critical|biggest fire/.test(t)) {
+  // 2. EDMONTON vs CALGARY
+  if (t.match(/edmonton|calgary|kind of day|city|focus/)) {
+    let remaining = allData.filter(r => 
+      !visited.has(getSiteId(r)) && 
+      !skipped.has(getSiteId(r)) && 
+      (getProvince(r) || '').toUpperCase() === 'AB' &&
+      isCommitmentKiosk(r)
+    );
+    
+    if (!remaining.length) return 'You have completed all your commitment kiosks. Great work.';
+
+    remaining.sort((a, b) => {
+      const sevA = getReject(a) * (getVol(a) + 1);
+      const sevB = getReject(b) * (getVol(b) + 1);
+      return sevB - sevA;
+    });
+
+    const topWorst = remaining.slice(0, 3);
+    const cityCounts = {};
+    topWorst.forEach(r => {
+      const c = getCity(r).trim() || 'Unknown';
+      cityCounts[c] = (cityCounts[c] || 0) + 1;
+    });
+
+    let topCity = '', topCount = 0;
+    for (const [city, count] of Object.entries(cityCounts)) {
+      if (count > topCount) { topCity = city; topCount = count; }
+    }
+
+    if (topCount >= 2) {
+      return `It's a ${topCity} day. The most critical commitment kiosks are in ${topCity}.`;
+    } else {
+      return `It's a split day. Your worst commitment kiosks are spread between ${Object.keys(cityCounts).join(' and ')}.`;
+    }
+  }
+
+  // 3. WORST KIOSK
+  if (t.match(/worst|fire|critical|problem/)) {
     const remaining = allData.filter(r => !visited.has(getSiteId(r)) && !skipped.has(getSiteId(r)) && (getProvince(r) || '').toUpperCase() === 'AB');
     if (!remaining.length) return 'No stops left.';
     remaining.sort((a, b) => getReject(b) - getReject(a));
@@ -777,17 +763,26 @@ function parseCommand(text) {
     return `The worst kiosk right now is ${getName(worst)} in ${getCity(worst)}. Reject rate is ${getReject(worst).toFixed(1)} percent.${dist !== null ? ` It is ${dist.toFixed(1)} kilometres away.` : ''}`;
   }
 
-  // STOPS / TIME LEFT
-  if (/how much time|how many left|time left|how many stops/.test(t)) {
+  // 4. HOW MANY LEFT
+  if (t.match(/how many|time|left/)) {
     const remaining = allData.filter(r => !visited.has(getSiteId(r)) && !skipped.has(getSiteId(r)) && (getProvince(r) || '').toUpperCase() === 'AB');
     if (!remaining.length) return 'You have zero stops left. Great work today.';
     const next = getNextStop();
     const dist = next ? distanceTo(next) : null;
-    return `You have ${remaining.length} stops remaining for today. ${dist !== null ? `Your nearest priority stop is ${dist.toFixed(1)} kilometres away.` : ''}`;
+    return `You have ${remaining.length} stops remaining. ${dist !== null ? `Your nearest priority stop is ${dist.toFixed(1)} kilometres away.` : ''}`;
   }
 
-  // STATUS REPORT (Morning Briefing)
-  if (/status report|briefing|overview|give me a summary/.test(t)) {
+  // 5. STATUS REPORT
+  if (t.match(/status|report|briefing|summary|commitment/)) {
+    if (t.match(/commitment mode|only commitment|focus commitment/)) {
+      if (!commitmentModeOnly) {
+        commitmentModeOnly = true;
+        updateCommitChip();
+        renderNextStop();
+      }
+      return `Commitment mode on. Routing only to ${commitmentKioskIds.size} commitment kiosks.`;
+    }
+
     const critical = allData.filter(r => getStatus(r) === 'Critical' && (getProvince(r)||'').toUpperCase()==='AB').length;
     const offline = allData.filter(r => getStatus(r) === 'Offline' && (getProvince(r)||'').toUpperCase()==='AB').length;
     const commit = getCommitmentStats();
@@ -796,7 +791,8 @@ function parseCommand(text) {
     return report;
   }
 
-  if (/nearby|near me|close/.test(t)) {
+  // 6. NEARBY
+  if (t.match(/nearby|near me|close/)) {
     if (!currentPos) return 'I need your location. Please allow GPS and try again.';
     const near = findNearby(10);
     if (!near || !near.length) return 'No Alberta assets within 10 kilometres.';
@@ -806,57 +802,23 @@ function parseCommand(text) {
     return `Found ${near.length} nearby. Closest: ${top}.`;
   }
 
-  if (/commitment status|how.*commitment|am i on track|how.*track/.test(t)) {
-    if (!commitmentKioskIds.size) return 'No commitment kiosks tracked. Load an Alberta CSV first.';
-    const s = getCommitmentStats();
-    return `Commitment status: ${s.above} of ${s.total} commitment kiosks at or above 98 percent. ${s.below} below target.`;
-  }
-
-  if (/exit commitment|commitment off|stop commitment|all kiosks/.test(t)) {
-    if (commitmentModeOnly) {
-      commitmentModeOnly = false;
-      updateCommitChip();
-      renderNextStop();
-    }
-    return 'Commitment mode off. Routing all kiosks.';
-  }
-
-  if (/commitment mode|only commitment|focus commitment|commitment on/.test(t)) {
-    if (!commitmentKioskIds.size) return 'No commitment kiosks tracked. Load an Alberta CSV first.';
-    if (!commitmentModeOnly) {
-      commitmentModeOnly = true;
-      updateCommitChip();
-      renderNextStop();
-    }
-    return `Commitment mode on. Routing only to ${commitmentKioskIds.size} commitment kiosks.`;
-  }
-
-  if (/how many critical|critical count/.test(t)) {
-    const c = allData.filter(r => getStatus(r) === 'Critical').length;
-    return `${c} critical asset${c === 1 ? '' : 's'}.`;
-  }
-
-  if (/how many offline|offline count/.test(t)) {
-    const o = allData.filter(r => getStatus(r) === 'Offline').length;
-    return `${o} offline asset${o === 1 ? '' : 's'}.`;
-  }
-
-  if (/mark.*done|i'?m done|finished|completed/.test(t)) {
+  // 7. ACTIONS
+  if (t.match(/done|finished|completed|mark/)) {
     markDone();
     return null;
   }
 
-  if (/skip|next one|move on/.test(t)) {
+  if (t.match(/skip|next one|move on/)) {
     skipStop();
     return null;
   }
 
-  if (/call|phone|dial/.test(t)) {
+  if (t.match(/call|phone|dial/)) {
     callStore();
     return null;
   }
 
-  if (/reset|start over/.test(t)) {
+  if (t.match(/reset|start over/)) {
     visited.clear();
     skipped.clear();
     try { localStorage.removeItem('angela_visited'); } catch (e) {}
@@ -865,89 +827,78 @@ function parseCommand(text) {
     return 'Route reset. All stops unmarked.';
   }
 
-  if (/stop|quiet|shut up|goodbye/.test(t)) {
-    stopListening();
-    return 'Standing by.';
-  }
-
-  return "I didn't catch that. Try 'next stop' or 'commitment status'.";
+  return "I didn't catch that. Try asking for your next stop, or a status report.";
 }
 
 // ============ SPEECH RECOGNITION ============
-function startListening() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { toast('Voice not supported on this browser'); return; }
-
-  try {
-    recognition = new SR();
-  } catch (e) {
-    toast('Could not start speech recognition');
+$('micBtn').addEventListener('click', () => {
+  if (!allData.length) return toast('Load CSV first');
+  
+  // If currently listening, stop it
+  if (listening) {
+    listening = false;
+    if (recognition) recognition.stop();
+    $('micBtn').classList.remove('listening');
+    $('status').textContent = 'Paused. Tap the mic to talk.';
     return;
   }
 
-  recognition.lang = 'en-CA';
-  recognition.continuous = true;
-  recognition.interimResults = false;
+  // Otherwise, start a 1.5s delay then listen
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return toast('Voice not supported');
 
-  recognition.onresult = e => {
-    if (isSpeaking) return;
-
-    const last = e.results[e.results.length - 1];
-    if (!last.isFinal) return;
-    const text = last[0].transcript.trim();
-    $('heard').textContent = text;
-    const reply = parseCommand(text);
-    
-    if (reply) speak(reply);
-  };
-
-  recognition.onerror = e => {
-    if (e.error === 'not-allowed') toast('Mic permission denied');
-    else if (e.error === 'no-speech') { /* silent */ }
-    else console.warn('Speech error:', e.error);
-  };
-
-  recognition.onend = () => {
-    if (listening && !isSpeaking) { 
-      try { recognition.start(); } catch (e) {} 
-    }
-  };
-
-  // 3-Second Delay Feature
-  clearTimeout(wakeTimer);
   $('micBtn').classList.remove('listening');
-  $('micBtn').classList.add('waiting');
-  $('status').textContent = '⏳ Starting mic in 3 seconds…';
+  $('micBtn').classList.add('thinking');
+  $('status').textContent = '⏳ Get ready…';
   
-  wakeTimer = setTimeout(() => {
+  setTimeout(() => {
     try {
+      recognition = new SR();
+      recognition.lang = 'en-CA';
+      recognition.continuous = false; // Only listen for one command
+      recognition.interimResults = false;
+
+      recognition.onresult = e => {
+        const last = e.results[e.results.length - 1];
+        const text = last[0].transcript.trim();
+        $('heard').textContent = text;
+        const reply = parseCommand(text);
+        if (reply) speak(reply);
+      };
+
+      recognition.onerror = e => {
+        if (e.error === 'not-allowed') toast('Mic permission denied');
+        else if (e.error === 'no-speech') {
+          $('micBtn').classList.remove('listening');
+          $('status').textContent = 'Didn\'t hear anything. Tap to try again.';
+        }
+      };
+
+      recognition.onend = () => {
+        // If she didn't speak (no reply was generated), turn mic off
+        if (!$('micBtn').classList.contains('thinking')) {
+          $('micBtn').classList.remove('listening');
+          listening = false;
+          $('status').textContent = 'Tap the mic to talk.';
+        }
+      };
+
       recognition.start();
       listening = true;
-      $('micBtn').classList.remove('waiting');
+      $('micBtn').classList.remove('thinking');
       $('micBtn').classList.add('listening');
-      $('status').textContent = '🎙️ Listening… say "Angela"';
-      speak('Angela listening.');
+      $('status').textContent = '🎙️ Listening…';
+      
+      // Simple beep so you know she's ready
+      const u = new SpeechSynthesisUtterance("I'm listening.");
+      u.rate = 1.1; u.pitch = 1.2; u.volume = 0.5;
+      window.speechSynthesis.speak(u);
+
     } catch (e) {
       toast('Could not start listening');
+      $('micBtn').classList.remove('thinking');
     }
-  }, 3000);
-}
-
-function stopListening() {
-  listening = false;
-  clearTimeout(wakeTimer);
-  try { if (recognition) recognition.stop(); } catch (e) {}
-  $('micBtn').classList.remove('listening', 'thinking', 'waiting');
-  $('status').textContent = 'Paused. Tap the mic to resume.';
-}
-
-$('micBtn').addEventListener('click', () => {
-  if (!allData.length) return toast('Load CSV first');
-  if (listening || $('micBtn').classList.contains('waiting')) {
-    stopListening();
-  } else {
-    startListening();
-  }
+  }, 1500);
 });
 
 // ============ RESET ROUTE ============
@@ -977,12 +928,11 @@ if (navigator.geolocation) {
       updateGpsChip('on', `GPS: ±${Math.round(pos.coords.accuracy)}m`);
       if (first && allData.length) {
         renderNextStop();
-        toast('GPS locked — route now sorted by distance');
+        toast('GPS locked — route sorted');
       }
     },
     err => {
       updateGpsChip('off', `GPS: ${err.message}`);
-      console.warn('GPS error:', err.message);
     },
     { enableHighAccuracy: true, maximumAge: 30000, timeout: 15000 }
   );
