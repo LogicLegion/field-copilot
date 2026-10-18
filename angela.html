@@ -65,6 +65,7 @@
   }
   .mic:active { transform: scale(.95); }
   .mic.listening { background: #238636; animation: pulse 1.5s infinite; }
+  .mic.thinking { background: #d29922; animation: pulse 1.5s infinite; }
   .mic:disabled { opacity: .35; cursor: not-allowed; }
   @keyframes pulse {
     0%   { box-shadow: 0 0 0 0 rgba(35,134,54,.7); }
@@ -224,14 +225,14 @@
   <h3>Voice commands</h3>
   <ul>
     <li>"Angela, next stop"</li>
-    <li>"Angela, repeat"</li>
+    <li>"Angela, what kind of day is it?"</li>
+    <li>"Angela, list route"</li>
+    <li>"Angela, status report"</li>
+    <li>"Angela, what's the worst kiosk?"</li>
+    <li>"Angela, how many stops left?"</li>
     <li>"Angela, nearby"</li>
-    <li>"Angela, mark done"</li>
-    <li>"Angela, skip"</li>
-    <li>"Angela, how many critical"</li>
-    <li>"Angela, commitment status"</li>
+    <li>"Angela, mark done" / "skip"</li>
     <li>"Angela, commitment mode"</li>
-    <li>"Angela, exit commitment mode"</li>
     <li>"Angela, stop"</li>
   </ul>
 </div>
@@ -250,6 +251,7 @@ let listening = false;
 let recognition = null;
 let currentStopId = null;
 let commitmentModeOnly = false;
+let isSpeaking = false; // Prevents mic from hearing its own voice
 
 const COMMITMENT_TARGET = 98;
 let commitmentKioskIds = new Set();
@@ -273,11 +275,28 @@ function speak(text) {
   $('reply').textContent = text;
   try {
     window.speechSynthesis.cancel();
+    isSpeaking = true;
+    $('micBtn').classList.remove('listening');
+    $('micBtn').classList.add('thinking');
+    
     const u = new SpeechSynthesisUtterance(text);
     u.rate = 1.05;
     u.lang = 'en-CA';
+    
+    // When she finishes speaking, turn the mic back on
+    u.onend = () => {
+      isSpeaking = false;
+      $('micBtn').classList.remove('thinking');
+      if (listening) {
+        $('micBtn').classList.add('listening');
+      }
+    };
+    
     window.speechSynthesis.speak(u);
-  } catch (e) { console.warn('Speech failed:', e); }
+  } catch (e) { 
+    isSpeaking = false;
+    console.warn('Speech failed:', e); 
+  }
 }
 
 // ============ CSV PARSER ============
@@ -680,6 +699,93 @@ function parseCommand(text) {
     return spokenNextStop(r);
   }
 
+  // 1. EDMONTON vs CALGARY (Using Commitment Kiosks)
+  if (/what kind of day|city day|edmonton day|calgary day|where should i focus/.test(t)) {
+    const commitLeft = allData.filter(r => 
+      isCommitmentKiosk(r) && !visited.has(getSiteId(r)) && !skipped.has(getSiteId(r))
+    );
+    
+    if (!commitLeft.length) return 'You have completed all your commitment kiosks for today.';
+    
+    const cityCounts = {};
+    commitLeft.forEach(r => {
+      const c = getCity(r).trim() || 'Unknown';
+      cityCounts[c] = (cityCounts[c] || 0) + 1;
+    });
+
+    let topCity = '', topCount = 0;
+    for (const [city, count] of Object.entries(cityCounts)) {
+      if (count > topCount) { topCity = city; topCount = count; }
+    }
+
+    const total = commitLeft.length;
+    const pct = Math.round((topCount / total) * 100);
+    
+    if (pct >= 50) {
+      return `It's a ${topCity} day. ${topCount} of your ${total} remaining commitment kiosks are in ${topCity}.`;
+    } else {
+      return `It's a split day for commitments. ${topCity} has the most with ${topCount}, but they are spread out across ${Object.keys(cityCounts).length} cities.`;
+    }
+  }
+
+  // 2. LIST ROUTE (Top 5 unvisited)
+  if (/route|list.*stops|plan.*day|all.*stops/.test(t)) {
+    let remaining = allData.filter(r =>
+      !visited.has(getSiteId(r)) && !skipped.has(getSiteId(r)) && (getProvince(r) || '').toUpperCase() === 'AB'
+    );
+    if (!remaining.length) return 'All stops are complete. Great work.';
+    if (!currentPos) {
+      remaining.sort((a, b) => (getReject(b) * (getVol(b) + 1)) - (getReject(a) * (getVol(a) + 1)));
+    } else {
+      remaining.map(r => {
+        const severity = getReject(r) * (getVol(r) + 1);
+        const offlineBoost = (firstVal(r, ['Kiosk State']) || '') === 'Offline' ? 1.5 : 1.0;
+        const d = distanceTo(r);
+        const dist = d === null ? 40 : d;
+        const distancePenalty = Math.pow(0.985, dist);
+        let commitBoost = isCommitmentKiosk(r) ? (isBelowCommitment(r) ? 2.5 : 1.5) : 1.0;
+        r._score = severity * offlineBoost * distancePenalty * commitBoost;
+        return r;
+      });
+      remaining.sort((a, b) => b._score - a._score);
+    }
+    const topStops = remaining.slice(0, 5);
+    const routeNames = topStops.map((r, i) => {
+      const dist = distanceTo(r);
+      return `${i + 1}. ${getName(r)}${dist !== null ? ` (${dist.toFixed(1)} km)` : ''}`;
+    });
+    return `Your next 5 stops are: ${routeNames.join('. ')}. There are ${remaining.length} stops remaining in total.`;
+  }
+
+  // 3. WORST KIOSK (Biggest Fire)
+  if (/worst kiosk|biggest problem|most critical|biggest fire/.test(t)) {
+    const remaining = allData.filter(r => !visited.has(getSiteId(r)) && !skipped.has(getSiteId(r)) && (getProvince(r) || '').toUpperCase() === 'AB');
+    if (!remaining.length) return 'No stops left.';
+    remaining.sort((a, b) => getReject(b) - getReject(a));
+    const worst = remaining[0];
+    const dist = distanceTo(worst);
+    return `The worst kiosk right now is ${getName(worst)} in ${getCity(worst)}. Reject rate is ${getReject(worst).toFixed(1)} percent.${dist !== null ? ` It is ${dist.toFixed(1)} kilometres away.` : ''}`;
+  }
+
+  // 4. STOPS / TIME LEFT
+  if (/how much time|how many left|time left|how many stops/.test(t)) {
+    const remaining = allData.filter(r => !visited.has(getSiteId(r)) && !skipped.has(getSiteId(r)) && (getProvince(r) || '').toUpperCase() === 'AB');
+    if (!remaining.length) return 'You have zero stops left. Great work today.';
+    const next = getNextStop();
+    const dist = next ? distanceTo(next) : null;
+    return `You have ${remaining.length} stops remaining for today. ${dist !== null ? `Your nearest priority stop is ${dist.toFixed(1)} kilometres away.` : ''}`;
+  }
+
+  // 5. STATUS REPORT (Morning Briefing)
+  if (/status report|briefing|overview|give me a summary/.test(t)) {
+    const critical = allData.filter(r => getStatus(r) === 'Critical' && (getProvince(r)||'').toUpperCase()==='AB').length;
+    const offline = allData.filter(r => getStatus(r) === 'Offline' && (getProvince(r)||'').toUpperCase()==='AB').length;
+    const commit = getCommitmentStats();
+    let report = `Alberta status report. ${critical} critical kiosks, ${offline} offline.`;
+    if (commit.total > 0) report += ` Commitment target: ${commit.above} of ${commit.total} are at or above 98 percent.`;
+    return report;
+  }
+
   if (/nearby|near me|close/.test(t)) {
     if (!currentPos) return 'I need your location. Please allow GPS and try again.';
     const near = findNearby(10);
@@ -774,11 +880,15 @@ function startListening() {
   recognition.interimResults = false;
 
   recognition.onresult = e => {
+    // If she's currently speaking her response, ignore new audio
+    if (isSpeaking) return;
+
     const last = e.results[e.results.length - 1];
     if (!last.isFinal) return;
     const text = last[0].transcript.trim();
     $('heard').textContent = text;
     const reply = parseCommand(text);
+    
     if (reply) speak(reply);
   };
 
@@ -789,7 +899,9 @@ function startListening() {
   };
 
   recognition.onend = () => {
-    if (listening) { try { recognition.start(); } catch (e) {} }
+    if (listening && !isSpeaking) { 
+      try { recognition.start(); } catch (e) {} 
+    }
   };
 
   try {
@@ -807,6 +919,7 @@ function stopListening() {
   listening = false;
   try { if (recognition) recognition.stop(); } catch (e) {}
   $('micBtn').classList.remove('listening');
+  $('micBtn').classList.remove('thinking');
   $('status').textContent = 'Paused. Tap the mic to resume.';
 }
 
