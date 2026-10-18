@@ -880,7 +880,6 @@ function startListening() {
   recognition.interimResults = false;
 
   recognition.onresult = e => {
-    // If she's currently speaking her response, ignore new audio
     if (isSpeaking) return;
 
     const last = e.results[e.results.length - 1];
