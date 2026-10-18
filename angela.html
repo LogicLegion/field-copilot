@@ -247,7 +247,7 @@ let allData = [];
 let visited = new Set();
 let skipped = new Set();
 let currentPos = null;
-let listening = false;
+let isListening = false;
 let recognition = null;
 let currentStopId = null;
 let commitmentModeOnly = false;
@@ -283,7 +283,8 @@ function speak(text) {
     
     u.onend = () => {
       $('micBtn').classList.remove('thinking');
-      $('micBtn').classList.add('listening');
+      // Once done speaking, we are back to idle. We do NOT turn the mic on.
+      $('status').textContent = 'Tap the mic to talk.';
     };
     
     window.speechSynthesis.speak(u);
@@ -372,7 +373,6 @@ $('csvFile').addEventListener('change', e => {
         ? `Loaded ${allData.length} assets. ${cc} commitment kiosks tracked. Ready.`
         : `Loaded ${allData.length} assets. Ready.`;
       
-      // Temporarily speak without changing mic state logic since we aren't listening yet
       const u = new SpeechSynthesisUtterance(msg);
       u.rate = 1.05; u.lang = 'en-CA';
       window.speechSynthesis.speak(u);
@@ -805,17 +805,17 @@ function parseCommand(text) {
   // 7. ACTIONS
   if (t.match(/done|finished|completed|mark/)) {
     markDone();
-    return null;
+    return "Marking this stop as complete.";
   }
 
   if (t.match(/skip|next one|move on/)) {
     skipStop();
-    return null;
+    return "Skipping this stop.";
   }
 
   if (t.match(/call|phone|dial/)) {
     callStore();
-    return null;
+    return "Calling the store.";
   }
 
   if (t.match(/reset|start over/)) {
@@ -830,68 +830,73 @@ function parseCommand(text) {
   return "I didn't catch that. Try asking for your next stop, or a status report.";
 }
 
-// ============ SPEECH RECOGNITION ============
+// ============ SPEECH RECOGNITION (WALKIE-TALKIE MODE) ============
 $('micBtn').addEventListener('click', () => {
   if (!allData.length) return toast('Load CSV first');
   
-  // If currently listening, stop it
-  if (listening) {
-    listening = false;
+  // If currently listening, stop it manually
+  if (isListening) {
+    isListening = false;
     if (recognition) recognition.stop();
     $('micBtn').classList.remove('listening');
     $('status').textContent = 'Paused. Tap the mic to talk.';
     return;
   }
 
-  // Otherwise, start a 1.5s delay then listen
+  // Otherwise, prepare to listen
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) return toast('Voice not supported');
+  if (!SR) return toast('Voice not supported on this browser');
 
   $('micBtn').classList.remove('listening');
   $('micBtn').classList.add('thinking');
   $('status').textContent = '⏳ Get ready…';
   
+  // Give a 1.5 second delay so you can get your hand back to the wheel
   setTimeout(() => {
     try {
       recognition = new SR();
       recognition.lang = 'en-CA';
-      recognition.continuous = false; // Only listen for one command
+      recognition.continuous = false; // ONLY LISTEN FOR ONE COMMAND
       recognition.interimResults = false;
 
       recognition.onresult = e => {
+        isListening = false;
+        $('micBtn').classList.remove('listening');
         const last = e.results[e.results.length - 1];
         const text = last[0].transcript.trim();
         $('heard').textContent = text;
+        
         const reply = parseCommand(text);
         if (reply) speak(reply);
       };
 
       recognition.onerror = e => {
+        isListening = false;
+        $('micBtn').classList.remove('listening');
         if (e.error === 'not-allowed') toast('Mic permission denied');
         else if (e.error === 'no-speech') {
-          $('micBtn').classList.remove('listening');
           $('status').textContent = 'Didn\'t hear anything. Tap to try again.';
         }
       };
 
       recognition.onend = () => {
-        // If she didn't speak (no reply was generated), turn mic off
+        // If she didn't speak (no reply), turn mic off
         if (!$('micBtn').classList.contains('thinking')) {
           $('micBtn').classList.remove('listening');
-          listening = false;
+          isListening = false;
           $('status').textContent = 'Tap the mic to talk.';
         }
       };
 
       recognition.start();
-      listening = true;
+      isListening = true;
       $('micBtn').classList.remove('thinking');
       $('micBtn').classList.add('listening');
       $('status').textContent = '🎙️ Listening…';
       
-      // Simple beep so you know she's ready
+      // Quiet beep so you know she's ready
       const u = new SpeechSynthesisUtterance("I'm listening.");
-      u.rate = 1.1; u.pitch = 1.2; u.volume = 0.5;
+      u.rate = 1.2; u.pitch = 1.1; u.volume = 0.3;
       window.speechSynthesis.speak(u);
 
     } catch (e) {
