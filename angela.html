@@ -451,14 +451,15 @@ function getStatus(r) {
   return 'Good';
 }
 
-// ============ COMMITMENT (Matches Tracker logic exactly) ============
+// ============ COMMITMENT ============
 function computeCommitmentKiosks() {
-  const abKiosks = allData.filter(r => (getProvince(r) || '').toUpperCase() === 'AB');
+  const abKiosks = allData.filter(r =>
+    (getProvince(r) || '').toString().trim().toUpperCase() === 'AB'
+  );
   if (!abKiosks.length) {
     commitmentKioskIds = new Set();
     return;
   }
-  // Sort by 7-day volume descending to find the top 33%
   const sorted = [...abKiosks].sort((a, b) => getVol7(b) - getVol7(a));
   const top33 = Math.max(1, Math.ceil(sorted.length * 0.33));
   commitmentKioskIds = new Set(sorted.slice(0, top33).map(getSiteId));
