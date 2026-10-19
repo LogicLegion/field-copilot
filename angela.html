@@ -15,171 +15,170 @@
     display: flex; flex-direction: column; align-items: center;
     padding-bottom: 40px;
   }
-  h1 { font-size: 1.3rem; margin-bottom: 4px; }
-  .status { color: #8b949e; font-size: 0.8rem; margin-bottom: 12px; text-align: center; min-height: 18px; }
+  h1 { font-size: 1.4rem; margin-bottom: 4px; letter-spacing: -0.5px; }
+  .status { color: #8b949e; font-size: 0.85rem; margin-bottom: 12px; text-align: center; min-height: 18px; font-weight: 500; }
 
+  /* Improved Toggle */
   .toggle-container {
-    display: flex; align-items: center; justify-content: center; gap: 12px;
-    background: #161b22; border: 1px solid #30363d; padding: 8px 16px; 
-    border-radius: 20px; margin-bottom: 12px; cursor: pointer;
+    display: flex; align-items: center; justify-content: space-between;
+    background: #161b22; border: 1px solid #30363d; padding: 12px 16px; 
+    border-radius: 16px; margin-bottom: 12px; cursor: pointer; width: 100%; max-width: 420px;
+    transition: all 0.2s;
   }
+  .toggle-container:hover { border-color: #58a6ff; }
   .toggle-switch {
-    width: 40px; height: 22px; background: #6e7681; border-radius: 20px;
+    width: 44px; height: 24px; background: #6e7681; border-radius: 20px;
     position: relative; transition: 0.3s;
   }
   .toggle-switch::after {
     content: ''; position: absolute; top: 2px; left: 2px;
-    width: 18px; height: 18px; background: white; border-radius: 50%;
-    transition: 0.3s;
+    width: 20px; height: 20px; background: white; border-radius: 50%;
+    transition: 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
   }
   .toggle-container.active .toggle-switch { background: #238636; }
-  .toggle-container.active .toggle-switch::after { transform: translateX(18px); }
-  .toggle-label { font-size: 0.8rem; font-weight: 600; color: #8b949e; }
+  .toggle-container.active .toggle-switch::after { transform: translateX(20px); }
+  .toggle-label { font-size: 0.85rem; font-weight: 600; color: #8b949e; }
   .toggle-container.active .toggle-label { color: #3fb950; }
 
-  .progress {
-    background: #161b22; border-radius: 12px; padding: 10px 16px;
-    font-size: 0.85rem; width: 100%; max-width: 420px;
-    display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 8px;
-  }
-  .progress .count { color: #58a6ff; font-weight: 700; }
-
-  .gps-chip {
-    background: #161b22; border-radius: 20px; padding: 4px 12px;
-    font-size: 0.75rem; color: #8b949e; margin-bottom: 10px;
-    display: inline-flex; align-items: center; gap: 6px;
-  }
-  .gps-chip.on  { color: #3fb950; border: 1px solid #238636; }
-  .gps-chip.off { color: #8b949e; border: 1px solid #30363d; }
-  .gps-chip .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; display: inline-block; }
-
-  .commit-chip {
+  /* Improved Chips */
+  .chips-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 16px; width: 100%; max-width: 420px; }
+  .chip {
     background: #161b22; border: 1px solid #30363d; border-radius: 20px;
     padding: 6px 14px; font-size: 0.75rem; color: #8b949e;
-    margin-bottom: 10px; cursor: pointer; transition: all .2s;
-    display: inline-flex; align-items: center; gap: 6px;
+    display: inline-flex; align-items: center; gap: 6px; font-weight: 500;
   }
-  .commit-chip:hover { background: #21262d; }
-  .commit-chip.active {
-    background: rgba(218, 54, 51, .15); color: #ff7b72;
-    border-color: #da3633; font-weight: 700;
+  .chip.on  { color: #3fb950; border-color: #238636; background: rgba(35,134,54,.1); }
+  .chip.off { color: #8b949e; }
+  .chip.active-commit { background: rgba(218, 54, 51, .15); color: #ff7b72; border-color: #da3633; font-weight: 700; cursor: pointer;}
+  .chip.clickable { cursor: pointer; transition: all .2s; }
+  .chip.clickable:hover { background: #21262d; }
+  .chip .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; display: inline-block; }
+
+  .progress {
+    background: #161b22; border-radius: 12px; padding: 12px 16px;
+    font-size: 0.9rem; width: 100%; max-width: 420px;
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 16px; border: 1px solid #30363d;
   }
+  .progress .count { color: #58a6ff; font-weight: 700; font-size: 1rem; }
 
   .load-box {
-    background: #161b22; border: 2px dashed #30363d; border-radius: 12px;
-    padding: 16px; text-align: center; margin-bottom: 12px;
-    width: 100%; max-width: 420px; cursor: pointer;
+    background: #161b22; border: 2px dashed #30363d; border-radius: 16px;
+    padding: 20px; text-align: center; margin-bottom: 16px;
+    width: 100%; max-width: 420px; cursor: pointer; transition: all 0.2s;
   }
-  .load-box:hover { border-color: #58a6ff; }
+  .load-box:hover { border-color: #58a6ff; background: #1c2128; }
   .load-box input { display: none; }
-  .load-box small { color: #8b949e; display: block; margin-top: 4px; font-size: 0.75rem; }
+  .load-box small { color: #8b949e; display: block; margin-top: 6px; font-size: 0.8rem; }
 
+  /* Mic Button */
   .mic {
-    width: 110px; height: 110px; border-radius: 50%;
+    width: 120px; height: 120px; border-radius: 50%;
     background: #da3633; border: none; color: white;
-    font-size: 44px; cursor: pointer;
-    box-shadow: 0 8px 24px rgba(218,54,51,.4);
-    transition: all .2s; margin: 8px 0 20px;
+    font-size: 48px; cursor: pointer;
+    box-shadow: 0 10px 30px rgba(218,54,51,.3);
+    transition: all .2s; margin: 8px 0 24px;
+    display: flex; align-items: center; justify-content: center;
   }
   .mic:active { transform: scale(.95); }
-  .mic.listening { background: #238636; animation: pulse 1.5s infinite; }
-  .mic.thinking { background: #d29922; animation: pulse 1.5s infinite; }
-  .mic:disabled { opacity: .35; cursor: not-allowed; }
+  .mic.listening { background: #238636; box-shadow: 0 10px 30px rgba(35,134,54,.4); animation: pulse 1.5s infinite; }
+  .mic.thinking { background: #d29922; box-shadow: 0 10px 30px rgba(210,153,34,.4); animation: pulse 1.5s infinite; }
+  .mic:disabled { opacity: .35; cursor: not-allowed; box-shadow: none; }
   @keyframes pulse {
-    0%   { box-shadow: 0 0 0 0 rgba(35,134,54,.7); }
-    70%  { box-shadow: 0 0 0 24px rgba(35,134,54,0); }
+    0%   { box-shadow: 0 0 0 0 rgba(35,134,54,.5); }
+    70%  { box-shadow: 0 0 0 30px rgba(35,134,54,0); }
     100% { box-shadow: 0 0 0 0 rgba(35,134,54,0); }
   }
 
+  /* Next Stop Card */
   .next-card {
-    background: linear-gradient(135deg, #161b22, #1c2531);
-    border: 1px solid #30363d; border-radius: 16px;
-    padding: 18px; width: 100%; max-width: 420px;
-    margin-bottom: 12px; display: none;
+    background: linear-gradient(145deg, #161b22, #1c2531);
+    border: 1px solid #30363d; border-radius: 20px;
+    padding: 20px; width: 100%; max-width: 420px;
+    margin-bottom: 16px; display: none; box-shadow: 0 8px 24px rgba(0,0,0,0.2);
   }
   .next-card.show { display: block; }
   .next-card .label {
-    font-size: 0.7rem; text-transform: uppercase; letter-spacing: .5px;
-    color: #8b949e; margin-bottom: 8px;
+    font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;
+    color: #8b949e; margin-bottom: 12px; font-weight: 700;
   }
   .next-card .name {
-    font-size: 1.25rem; font-weight: 700; color: #e6edf3;
-    margin-bottom: 4px; line-height: 1.25;
+    font-size: 1.4rem; font-weight: 800; color: #e6edf3;
+    margin-bottom: 6px; line-height: 1.2; letter-spacing: -0.5px;
   }
-  .next-card .address { font-size: 0.85rem; color: #8b949e; margin-bottom: 12px; }
+  .next-card .address { font-size: 0.9rem; color: #8b949e; margin-bottom: 14px; line-height: 1.4; }
   .next-card .distance {
-    font-size: 0.8rem; color: #58a6ff; margin-bottom: 10px; font-weight: 600;
+    font-size: 0.85rem; color: #58a6ff; margin-bottom: 14px; font-weight: 700;
+    display: inline-flex; align-items: center; gap: 6px; background: rgba(88,166,255,.1); padding: 4px 10px; border-radius: 8px;
   }
   .next-card .commitment-line {
-    font-size: 0.8rem; margin-bottom: 10px; font-weight: 600;
-    padding: 6px 10px; border-radius: 8px; display: none;
+    font-size: 0.85rem; margin-bottom: 14px; font-weight: 600;
+    padding: 8px 12px; border-radius: 10px; display: none;
   }
-  .next-card .commitment-line.below {
-    background: rgba(218, 54, 51, .15); color: #ff7b72;
-    border-left: 3px solid #da3633;
-  }
-  .next-card .commitment-line.ok {
-    background: rgba(35, 134, 54, .15); color: #3fb950;
-    border-left: 3px solid #238636;
-  }
-  .next-card .metrics { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .next-card .commitment-line.below { background: rgba(218, 54, 51, .15); color: #ff7b72; border-left: 4px solid #da3633; }
+  .next-card .commitment-line.ok { background: rgba(35, 134, 54, .15); color: #3fb950; border-left: 4px solid #238636; }
+  
+  .next-card .metrics { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
   .metric {
-    background: #0d1117; border-radius: 8px; padding: 6px 10px;
-    font-size: 0.75rem; color: #8b949e;
+    background: #0d1117; border-radius: 10px; padding: 8px 12px;
+    font-size: 0.8rem; color: #8b949e; flex: 1; text-align: center; border: 1px solid #21262d;
   }
-  .metric strong { color: #e6edf3; }
+  .metric strong { display: block; color: #e6edf3; font-size: 1.1rem; margin-top: 2px; }
 
   .status-badge {
-    display: inline-block; padding: 3px 10px; border-radius: 12px;
-    font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
-    margin-bottom: 8px;
+    display: inline-block; padding: 4px 12px; border-radius: 20px;
+    font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+    margin-bottom: 12px;
   }
   .status-badge.Critical { background: #da3633; color: white; }
   .status-badge.Warning  { background: #d29922; color: white; }
   .status-badge.Good     { background: #238636; color: white; }
   .status-badge.Offline  { background: #6e7681; color: white; }
 
-  .actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 4px; }
+  .actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 6px; }
   .actions button {
-    padding: 14px 8px; border-radius: 12px; border: none;
-    font-size: 0.9rem; font-weight: 700; cursor: pointer;
-    transition: all .15s; color: white;
+    padding: 16px 8px; border-radius: 14px; border: none;
+    font-size: 0.95rem; font-weight: 700; cursor: pointer;
+    transition: all .15s; color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   }
   .actions button:active { transform: scale(.96); }
   .btn-call { background: #1f6feb; }
+  .btn-call:hover { background: #388bfd; }
   .btn-done { background: #238636; }
-  .btn-skip { background: #6e7681; }
+  .btn-done:hover { background: #2ea043; }
+  .btn-skip { background: #30363d; color: #c9d1d9; }
+  .btn-skip:hover { background: #3f4650; }
 
+  /* Chat Panels */
   .panel {
-    background: #161b22; border-radius: 12px; padding: 12px 16px;
-    margin-top: 10px; width: 100%; max-width: 420px;
-    font-size: 0.85rem;
+    background: #161b22; border-radius: 16px; padding: 16px;
+    margin-top: 12px; width: 100%; max-width: 420px;
+    font-size: 0.9rem; border: 1px solid #30363d;
   }
-  .panel .label { color: #8b949e; font-size: 0.65rem; text-transform: uppercase; margin-bottom: 4px; }
-  .panel .value { color: #e6edf3; line-height: 1.4; }
+  .panel .label { color: #8b949e; font-size: 0.7rem; text-transform: uppercase; margin-bottom: 6px; font-weight: 700; letter-spacing: 0.5px; }
+  .panel .value { color: #e6edf3; line-height: 1.5; font-weight: 500; }
 
   .commands {
-    margin-top: 20px; width: 100%; max-width: 420px;
-    background: #161b22; border-radius: 12px; padding: 14px 16px;
-    font-size: 0.8rem;
+    margin-top: 24px; width: 100%; max-width: 420px;
+    background: #161b22; border-radius: 16px; padding: 16px; font-size: 0.85rem; border: 1px solid #30363d;
   }
-  .commands h3 { color: #58a6ff; margin-bottom: 6px; font-size: 0.85rem; }
-  .commands li { color: #8b949e; margin: 4px 0; list-style: none; }
-  .commands li::before { content: "🎤 "; }
+  .commands h3 { color: #58a6ff; margin-bottom: 10px; font-size: 0.9rem; font-weight: 700; }
+  .commands li { color: #8b949e; margin: 6px 0; list-style: none; display: flex; align-items: center; gap: 8px; }
+  .commands li::before { content: "🎤"; font-size: 0.8rem; opacity: 0.7; }
 
   .reset-btn {
-    margin-top: 16px; background: #21262d; color: #8b949e;
-    border: 1px solid #30363d; padding: 8px 20px; border-radius: 20px;
-    font-size: 0.8rem; cursor: pointer;
+    margin-top: 20px; background: transparent; color: #8b949e;
+    border: 1px solid #30363d; padding: 10px 24px; border-radius: 20px;
+    font-size: 0.85rem; cursor: pointer; transition: all 0.2s;
   }
+  .reset-btn:hover { background: #21262d; color: #c9d1d9; }
   .reset-btn:active { background: #30363d; }
 
   .toast {
-    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-    background: #238636; color: white; padding: 10px 20px; border-radius: 24px;
-    font-size: 0.85rem; opacity: 0; transition: opacity .3s;
-    pointer-events: none; z-index: 999;
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: #238636; color: white; padding: 12px 24px; border-radius: 30px;
+    font-size: 0.9rem; font-weight: 600; opacity: 0; transition: opacity .3s;
+    pointer-events: none; z-index: 999; box-shadow: 0 8px 24px rgba(0,0,0,0.3);
   }
   .toast.show { opacity: 1; }
 </style>
@@ -190,17 +189,13 @@
 <div class="status" id="status">Upload your CSV to begin</div>
 
 <div class="toggle-container" id="handsFreeToggle">
+  <div class="toggle-label" id="handsFreeLabel">Hands-Free Mode</div>
   <div class="toggle-switch"></div>
-  <div class="toggle-label" id="handsFreeLabel">Hands-Free Mode: OFF</div>
 </div>
 
-<div class="gps-chip off" id="gpsChip">
-  <span class="dot"></span>
-  <span id="gpsText">GPS: waiting…</span>
-</div>
-
-<div class="commit-chip" id="commitChip" title="Tap to toggle Commitment Mode">
-  🎯 <span id="commitText">Commitment Mode: Off</span>
+<div class="chips-row">
+  <div class="chip off" id="gpsChip"><span class="dot"></span><span id="gpsText">GPS: waiting…</span></div>
+  <div class="chip clickable" id="commitChip" title="Tap to toggle Commitment Mode"><span>🎯</span> <span id="commitText">Commitment: Off</span></div>
 </div>
 
 <div class="progress" id="progressBar" style="display:none;">
@@ -222,9 +217,9 @@
   <div class="distance" id="ncDistance"></div>
   <div class="commitment-line" id="ncCommitment"></div>
   <div class="metrics">
-    <div class="metric">Reject: <strong id="ncReject">—</strong></div>
-    <div class="metric">Uptime: <strong id="ncUptime">—</strong></div>
-    <div class="metric">Activity: <strong id="ncVol">—</strong></div>
+    <div class="metric">Reject<strong id="ncReject">—</strong></div>
+    <div class="metric">Uptime<strong id="ncUptime">—</strong></div>
+    <div class="metric">Activity<strong id="ncVol">—</strong></div>
   </div>
   <div class="actions">
     <button class="btn-call" id="btnCall">📞 Call</button>
@@ -246,16 +241,16 @@
 </div>
 
 <div class="commands">
-  <h3>Example Commands</h3>
+  <h3>Voice Commands</h3>
   <ul>
     <li>"What's my next stop?"</li>
-    <li>"Is it an Edmonton day or a Calgary day?"</li>
-    <li>"List my route"</li>
+    <li>"Plan my route"</li>
+    <li>"Is it an Edmonton or Calgary day?"</li>
     <li>"Give me a status report"</li>
     <li>"Where is the worst kiosk?"</li>
     <li>"How many stops are left?"</li>
     <li>"What's nearby?"</li>
-    <li>"I'm done here" or "Skip this one"</li>
+    <li>"I'm done here" / "Skip this one"</li>
     <li>"Turn on commitment mode"</li>
     <li>"Call the store"</li>
   </ul>
@@ -292,11 +287,11 @@ $('handsFreeToggle').addEventListener('click', () => {
   const el = $('handsFreeToggle');
   if (handsFreeMode) {
     el.classList.add('active');
-    $('handsFreeLabel').textContent = 'Hands-Free Mode: ON';
+    $('handsFreeLabel').textContent = 'Hands-Free: ON';
     toast('Hands-free mode on. She will listen after she replies.');
   } else {
     el.classList.remove('active');
-    $('handsFreeLabel').textContent = 'Hands-Free Mode: OFF';
+    $('handsFreeLabel').textContent = 'Hands-Free: OFF';
     toast('Hands-free mode off.');
   }
 });
@@ -306,7 +301,7 @@ function toast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   clearTimeout(window._toastTimer);
-  window._toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+  window._toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
 }
 
 function speak(text) {
@@ -606,8 +601,8 @@ function renderNextStop() {
   $('ncAddress').textContent = getFullAddress(r) || 'No address on file';
 
   const d = distanceTo(r);
-  $('ncDistance').textContent = d === null
-    ? '📍 Distance unknown (no GPS or no coordinates)'
+  $('ncDistance').innerHTML = d === null
+    ? '📍 Distance unknown'
     : `📍 ${d.toFixed(1)} km away`;
 
   const cEl = $('ncCommitment');
@@ -654,14 +649,16 @@ function updateProgress() {
 function updateCommitChip() {
   const chip = $('commitChip');
   if (commitmentModeOnly) {
-    chip.classList.add('active');
-    $('commitText').textContent = `Commitment Mode: ON (${commitmentKioskIds.size})`;
+    chip.classList.add('active-commit');
+    chip.classList.remove('off');
+    $('commitText').textContent = `Commitment: ON (${commitmentKioskIds.size})`;
   } else {
-    chip.classList.remove('active');
+    chip.classList.remove('active-commit');
+    chip.classList.add('off');
     const c = commitmentKioskIds.size;
     $('commitText').textContent = c
-      ? `Commitment Mode: Off (${c} tracked)`
-      : 'Commitment Mode: Off';
+      ? `Commitment: Off (${c} tracked)`
+      : 'Commitment: Off';
   }
 }
 
@@ -731,32 +728,53 @@ function parseCommand(text) {
     return spokenNextStop(r);
   }
 
+  // ADVANCED ROUTE PLANNER (Max 4 stops per city)
   if (t.match(/route|list|plan|stops/)) {
     let remaining = allData.filter(r =>
       !visited.has(getSiteId(r)) && !skipped.has(getSiteId(r)) && (getProvince(r) || '').toUpperCase() === 'AB'
     );
     if (!remaining.length) return 'All stops are complete. Great work.';
-    if (!currentPos) {
-      remaining.sort((a, b) => (getReject(b) * (getVol(b) + 1)) - (getReject(a) * (getVol(a) + 1)));
-    } else {
-      remaining.map(r => {
-        const severity = getReject(r) * (getVol(r) + 1);
-        const offlineBoost = (firstVal(r, ['Kiosk State']) || '') === 'Offline' ? 1.5 : 1.0;
-        const d = distanceTo(r);
-        const dist = d === null ? 40 : d;
-        const distancePenalty = Math.pow(0.985, dist);
-        let commitBoost = isCommitmentKiosk(r) ? (isBelowCommitment(r) ? 2.5 : 1.5) : 1.0;
-        r._score = severity * offlineBoost * distancePenalty * commitBoost;
-        return r;
-      });
-      remaining.sort((a, b) => b._score - a._score);
-    }
-    const topStops = remaining.slice(0, 5);
-    const routeNames = topStops.map((r, i) => {
-      const addr = getAddress(r);
-      return `${i + 1}. ${getName(r)} at ${addr}`;
+    
+    // Sort by severity/commitment (ignore distance for the ranking)
+    remaining.map(r => {
+      const severity = getReject(r) * (getVol(r) + 1);
+      const offlineBoost = (firstVal(r, ['Kiosk State']) || '') === 'Offline' ? 1.5 : 1.0;
+      let commitBoost = isCommitmentKiosk(r) ? (isBelowCommitment(r) ? 2.5 : 1.5) : 1.0;
+      r._score = severity * offlineBoost * commitBoost;
+      return r;
     });
-    return `Your next 5 stops are: ${routeNames.join('. ')}. There are ${remaining.length} stops remaining.`;
+    remaining.sort((a, b) => b._score - a._score);
+
+    // Group into cities (Edmonton, Calgary, Other)
+    const edmonton = [], calgary = [];
+    remaining.forEach(r => {
+      const city = getCity(r).toLowerCase();
+      if (city.includes('edmonton')) edmonton.push(r);
+      else if (city.includes('calgary')) calgary.push(r);
+    });
+
+    // Take max 4 per city
+    const edTop = edmonton.slice(0, 4);
+    const calTop = calgary.slice(0, 4);
+
+    let routeSpeech = '';
+    if (edTop.length && calTop.length) {
+      routeSpeech = `Plan: ${edTop.length} stops in Edmonton, ${calTop.length} in Calgary. `;
+      routeSpeech += `Edmonton: ${edTop.map(r => `${getName(r)} at ${getAddress(r)}`).join('. ')}. `;
+      routeSpeech += `Calgary: ${calTop.map(r => `${getName(r)} at ${getAddress(r)}`).join('. ')}.`;
+    } else if (edTop.length) {
+      routeSpeech = `Plan: ${edTop.length} stops in Edmonton. `;
+      routeSpeech += edTop.map(r => `${getName(r)} at ${getAddress(r)}`).join('. ');
+    } else if (calTop.length) {
+      routeSpeech = `Plan: ${calTop.length} stops in Calgary. `;
+      routeSpeech += calTop.map(r => `${getName(r)} at ${getAddress(r)}`).join('. ');
+    } else {
+      // Just top 4 of whatever is left
+      const topOther = remaining.slice(0, 4);
+      routeSpeech = `Plan: Top ${topOther.length} stops. ` + topOther.map(r => `${getName(r)} in ${getCity(r)}`).join('. ');
+    }
+
+    return routeSpeech;
   }
 
   if (t.match(/edmonton|calgary|kind of day|city|focus/)) {
@@ -866,7 +884,7 @@ function parseCommand(text) {
   return "I didn't catch that. Try asking for your next stop, or a status report.";
 }
 
-// ============ SPEECH RECOGNITION (VOICE ENGINE) ============
+// ============ SPEECH RECOGNITION ============
 function startVoiceRecognition(isAutoRestart = false) {
   if (!allData.length) return toast('Load CSV first');
   if (isListening) return; 
@@ -912,7 +930,6 @@ function startVoiceRecognition(isAutoRestart = false) {
       recognition.onend = () => {
         isListening = false;
         $('micBtn').classList.remove('listening');
-        // FIX: If she didn't speak (no reply was generated), turn mic back to idle (Red)
         if (!$('micBtn').classList.contains('thinking')) {
           $('status').textContent = 'Tap the mic to talk.';
         }
@@ -960,12 +977,12 @@ $('resetRouteBtn').addEventListener('click', () => {
 // ============ GPS ============
 function updateGpsChip(status, text) {
   const chip = $('gpsChip');
-  chip.className = 'gps-chip ' + status;
+  chip.className = 'chip ' + status;
   $('gpsText').textContent = text;
 }
 
 if (navigator.geolocation) {
-  updateGpsChip('off', 'GPS: waiting for permission…');
+  updateGpsChip('off', 'GPS: waiting…');
   navigator.geolocation.watchPosition(
     pos => {
       const first = !currentPos;
@@ -977,7 +994,7 @@ if (navigator.geolocation) {
       }
     },
     err => {
-      updateGpsChip('off', `GPS: ${err.message}`);
+      updateGpsChip('off', `GPS error`);
     },
     { enableHighAccuracy: true, maximumAge: 30000, timeout: 15000 }
   );
