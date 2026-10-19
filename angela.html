@@ -16,7 +16,27 @@
     padding-bottom: 40px;
   }
   h1 { font-size: 1.3rem; margin-bottom: 4px; }
-  .status { color: #8b949e; font-size: 0.8rem; margin-bottom: 16px; text-align: center; min-height: 18px; }
+  .status { color: #8b949e; font-size: 0.8rem; margin-bottom: 12px; text-align: center; min-height: 18px; }
+
+  /* Hands-Free Toggle */
+  .toggle-container {
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    background: #161b22; border: 1px solid #30363d; padding: 8px 16px; 
+    border-radius: 20px; margin-bottom: 12px; cursor: pointer;
+  }
+  .toggle-switch {
+    width: 40px; height: 22px; background: #6e7681; border-radius: 20px;
+    position: relative; transition: 0.3s;
+  }
+  .toggle-switch::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 18px; height: 18px; background: white; border-radius: 50%;
+    transition: 0.3s;
+  }
+  .toggle-container.active .toggle-switch { background: #238636; }
+  .toggle-container.active .toggle-switch::after { transform: translateX(18px); }
+  .toggle-label { font-size: 0.8rem; font-weight: 600; color: #8b949e; }
+  .toggle-container.active .toggle-label { color: #3fb950; }
 
   .progress {
     background: #161b22; border-radius: 12px; padding: 10px 16px;
@@ -170,6 +190,12 @@
 <h1>🎙️ Angela</h1>
 <div class="status" id="status">Upload your CSV to begin</div>
 
+<!-- HANDS FREE TOGGLE -->
+<div class="toggle-container" id="handsFreeToggle">
+  <div class="toggle-switch"></div>
+  <div class="toggle-label" id="handsFreeLabel">Hands-Free Mode: OFF</div>
+</div>
+
 <div class="gps-chip off" id="gpsChip">
   <span class="dot"></span>
   <span id="gpsText">GPS: waiting…</span>
@@ -251,6 +277,7 @@ let isListening = false;
 let recognition = null;
 let currentStopId = null;
 let commitmentModeOnly = false;
+let handsFreeMode = false; // New Toggle State
 
 const COMMITMENT_TARGET = 98;
 let commitmentKioskIds = new Set();
@@ -261,6 +288,21 @@ try {
   const saved = JSON.parse(localStorage.getItem('angela_visited') || '[]');
   if (Array.isArray(saved)) visited = new Set(saved);
 } catch (e) { visited = new Set(); }
+
+// ============ HANDS-FREE TOGGLE ============
+$('handsFreeToggle').addEventListener('click', () => {
+  handsFreeMode = !handsFreeMode;
+  const el = $('handsFreeToggle');
+  if (handsFreeMode) {
+    el.classList.add('active');
+    $('handsFreeLabel').textContent = 'Hands-Free Mode: ON';
+    toast('Hands-free mode on. Ask a question and she will listen for 5 seconds after replying.');
+  } else {
+    el.classList.remove('active');
+    $('handsFreeLabel').textContent = 'Hands-Free Mode: OFF';
+    toast('Hands-free mode off. Tap the mic for each question.');
+  }
+});
 
 function toast(msg) {
   const t = $('toast');
@@ -284,6 +326,13 @@ function speak(text) {
     u.onend = () => {
       $('micBtn').classList.remove('thinking');
       $('status').textContent = 'Tap the mic to talk.';
+      
+      // HANDS FREE LOGIC: If ON, automatically start listening after she finishes
+      if (handsFreeMode) {
+        setTimeout(() => {
+          startVoiceRecognition(true);
+        }, 500); // Half second pause so the speaker doesn't echo
+      }
     };
     
     window.speechSynthesis.speak(u);
@@ -681,7 +730,6 @@ function findNearby(km = 10) {
 function parseCommand(text) {
   const t = String(text).toLowerCase();
   
-  // 1. NEXT STOP / ROUTE LIST
   if (t.match(/next|what'?s next|where to|take me/)) {
     const r = getNextStop();
     if (!r) return 'All stops complete. Great work.';
@@ -716,7 +764,6 @@ function parseCommand(text) {
     return `Your next 5 stops are: ${routeNames.join('. ')}. There are ${remaining.length} stops remaining.`;
   }
 
-  // 2. EDMONTON vs CALGARY
   if (t.match(/edmonton|calgary|kind of day|city|focus/)) {
     let remaining = allData.filter(r => 
       !visited.has(getSiteId(r)) && 
@@ -746,4 +793,202 @@ function parseCommand(text) {
     }
 
     if (topCount >= 2) {
-      return `It
+      return `It's a ${topCity} day. The most critical commitment kiosks are in ${topCity}.`;
+    } else {
+      return `It's a split day. Your worst commitment kiosks are spread between ${Object.keys(cityCounts).join(' and ')}.`;
+    }
+  }
+
+  if (t.match(/worst|fire|critical|problem/)) {
+    const remaining = allData.filter(r => !visited.has(getSiteId(r)) && !skipped.has(getSiteId(r)) && (getProvince(r) || '').toUpperCase() === 'AB');
+    if (!remaining.length) return 'No stops left.';
+    remaining.sort((a, b) => getReject(b) - getReject(a));
+    const worst = remaining[0];
+    const dist = distanceTo(worst);
+    return `The worst kiosk right now is ${getName(worst)} in ${getCity(worst)}. Reject rate is ${getReject(worst).toFixed(1)} percent.${dist !== null ? ` It is ${dist.toFixed(1)} kilometres away.` : ''}`;
+  }
+
+  if (t.match(/how many|time|left/)) {
+    const remaining = allData.filter(r => !visited.has(getSiteId(r)) && !skipped.has(getSiteId(r)) && (getProvince(r) || '').toUpperCase() === 'AB');
+    if (!remaining.length) return 'You have zero stops left. Great work today.';
+    const next = getNextStop();
+    const dist = next ? distanceTo(next) : null;
+    return `You have ${remaining.length} stops remaining. ${dist !== null ? `Your nearest priority stop is ${dist.toFixed(1)} kilometres away.` : ''}`;
+  }
+
+  if (t.match(/status|report|briefing|summary|commitment/)) {
+    if (t.match(/commitment mode|only commitment|focus commitment/)) {
+      if (!commitmentModeOnly) {
+        commitmentModeOnly = true;
+        updateCommitChip();
+        renderNextStop();
+      }
+      return `Commitment mode on. Routing only to ${commitmentKioskIds.size} commitment kiosks.`;
+    }
+
+    const critical = allData.filter(r => getStatus(r) === 'Critical' && (getProvince(r)||'').toUpperCase()==='AB').length;
+    const offline = allData.filter(r => getStatus(r) === 'Offline' && (getProvince(r)||'').toUpperCase()==='AB').length;
+    const commit = getCommitmentStats();
+    let report = `Alberta status report. ${critical} critical kiosks, ${offline} offline.`;
+    if (commit.total > 0) report += ` Commitment target: ${commit.above} of ${commit.total} are at or above 98 percent.`;
+    return report;
+  }
+
+  if (t.match(/nearby|near me|close/)) {
+    if (!currentPos) return 'I need your location. Please allow GPS and try again.';
+    const near = findNearby(10);
+    if (!near || !near.length) return 'No Alberta assets within 10 kilometres.';
+    const top = near.slice(0, 3)
+      .map(x => `${getName(x.asset)} at ${x.dist.toFixed(1)} kilometres`)
+      .join('. ');
+    return `Found ${near.length} nearby. Closest: ${top}.`;
+  }
+
+  if (t.match(/done|finished|completed|mark/)) {
+    markDone();
+    return "Marking this stop as complete.";
+  }
+
+  if (t.match(/skip|next one|move on/)) {
+    skipStop();
+    return "Skipping this stop.";
+  }
+
+  if (t.match(/call|phone|dial/)) {
+    callStore();
+    return "Calling the store.";
+  }
+
+  if (t.match(/reset|start over/)) {
+    visited.clear();
+    skipped.clear();
+    try { localStorage.removeItem('angela_visited'); } catch (e) {}
+    updateProgress();
+    renderNextStop();
+    return 'Route reset. All stops unmarked.';
+  }
+
+  return "I didn't catch that. Try asking for your next stop, or a status report.";
+}
+
+// ============ SPEECH RECOGNITION (VOICE ENGINE) ============
+function startVoiceRecognition(isAutoRestart = false) {
+  if (!allData.length) return toast('Load CSV first');
+  if (isListening) return; // Prevent double-starting
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return toast('Voice not supported on this browser');
+
+  $('micBtn').classList.remove('listening');
+  $('micBtn').classList.add('thinking');
+  
+  if (!isAutoRestart) {
+    $('status').textContent = '⏳ Get ready…';
+  }
+  
+  // Delay to prevent speaker echo
+  setTimeout(() => {
+    try {
+      recognition = new SR();
+      recognition.lang = 'en-CA';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onresult = e => {
+        isListening = false;
+        $('micBtn').classList.remove('listening');
+        const last = e.results[e.results.length - 1];
+        const text = last[0].transcript.trim();
+        $('heard').textContent = text;
+        
+        const reply = parseCommand(text);
+        if (reply) speak(reply);
+        else if (handsFreeMode) startVoiceRecognition(true); // If action (like Skip), keep hands-free going
+      };
+
+      recognition.onerror = e => {
+        isListening = false;
+        $('micBtn').classList.remove('listening');
+        if (e.error === 'not-allowed') toast('Mic permission denied');
+        else if (e.error === 'no-speech') {
+          if (!isAutoRestart) $('status').textContent = 'Didn\'t hear anything. Tap to try again.';
+        }
+      };
+
+      recognition.onend = () => {
+        isListening = false;
+        $('micBtn').classList.remove('listening');
+        if (!$('micBtn').classList.contains('thinking')) {
+          $('status').textContent = 'Tap the mic to talk.';
+        }
+      };
+
+      recognition.start();
+      isListening = true;
+      $('micBtn').classList.remove('thinking');
+      $('micBtn').classList.add('listening');
+      $('status').textContent = '🎙️ Listening…';
+      
+      const u = new SpeechSynthesisUtterance("I'm listening.");
+      u.rate = 1.2; u.pitch = 1.1; u.volume = 0.3;
+      window.speechSynthesis.speak(u);
+
+    } catch (e) {
+      toast('Could not start listening');
+      $('micBtn').classList.remove('thinking');
+    }
+  }, isAutoRestart ? 800 : 1200); // Longer delay if auto-restarting to clear echo
+}
+
+$('micBtn').addEventListener('click', () => {
+  if (isListening) {
+    isListening = false;
+    if (recognition) recognition.stop();
+    $('micBtn').classList.remove('listening');
+    $('status').textContent = 'Paused. Tap the mic to talk.';
+  } else {
+    startVoiceRecognition(false);
+  }
+});
+
+// ============ RESET ROUTE ============
+$('resetRouteBtn').addEventListener('click', () => {
+  if (!confirm('Clear all visited stops? This cannot be undone.')) return;
+  visited.clear();
+  skipped.clear();
+  try { localStorage.removeItem('angela_visited'); } catch (e) {}
+  updateProgress();
+  renderNextStop();
+  toast('Route reset');
+});
+
+// ============ GPS ============
+function updateGpsChip(status, text) {
+  const chip = $('gpsChip');
+  chip.className = 'gps-chip ' + status;
+  $('gpsText').textContent = text;
+}
+
+if (navigator.geolocation) {
+  updateGpsChip('off', 'GPS: waiting for permission…');
+  navigator.geolocation.watchPosition(
+    pos => {
+      const first = !currentPos;
+      currentPos = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+      updateGpsChip('on', `GPS: ±${Math.round(pos.coords.accuracy)}m`);
+      if (first && allData.length) {
+        renderNextStop();
+        toast('GPS locked — route sorted');
+      }
+    },
+    err => {
+      updateGpsChip('off', `GPS: ${err.message}`);
+    },
+    { enableHighAccuracy: true, maximumAge: 30000, timeout: 15000 }
+  );
+} else {
+  updateGpsChip('off', 'GPS: not supported');
+}
+</script>
+</body>
+</html>
