@@ -18,7 +18,6 @@
   h1 { font-size: 1.3rem; margin-bottom: 4px; }
   .status { color: #8b949e; font-size: 0.8rem; margin-bottom: 12px; text-align: center; min-height: 18px; }
 
-  /* Hands-Free Toggle */
   .toggle-container {
     display: flex; align-items: center; justify-content: center; gap: 12px;
     background: #161b22; border: 1px solid #30363d; padding: 8px 16px; 
@@ -190,7 +189,6 @@
 <h1>🎙️ Angela</h1>
 <div class="status" id="status">Upload your CSV to begin</div>
 
-<!-- HANDS FREE TOGGLE -->
 <div class="toggle-container" id="handsFreeToggle">
   <div class="toggle-switch"></div>
   <div class="toggle-label" id="handsFreeLabel">Hands-Free Mode: OFF</div>
@@ -277,7 +275,7 @@ let isListening = false;
 let recognition = null;
 let currentStopId = null;
 let commitmentModeOnly = false;
-let handsFreeMode = false; // New Toggle State
+let handsFreeMode = false; 
 
 const COMMITMENT_TARGET = 98;
 let commitmentKioskIds = new Set();
@@ -289,18 +287,17 @@ try {
   if (Array.isArray(saved)) visited = new Set(saved);
 } catch (e) { visited = new Set(); }
 
-// ============ HANDS-FREE TOGGLE ============
 $('handsFreeToggle').addEventListener('click', () => {
   handsFreeMode = !handsFreeMode;
   const el = $('handsFreeToggle');
   if (handsFreeMode) {
     el.classList.add('active');
     $('handsFreeLabel').textContent = 'Hands-Free Mode: ON';
-    toast('Hands-free mode on. Ask a question and she will listen for 5 seconds after replying.');
+    toast('Hands-free mode on. She will listen after she replies.');
   } else {
     el.classList.remove('active');
     $('handsFreeLabel').textContent = 'Hands-Free Mode: OFF';
-    toast('Hands-free mode off. Tap the mic for each question.');
+    toast('Hands-free mode off.');
   }
 });
 
@@ -327,11 +324,10 @@ function speak(text) {
       $('micBtn').classList.remove('thinking');
       $('status').textContent = 'Tap the mic to talk.';
       
-      // HANDS FREE LOGIC: If ON, automatically start listening after she finishes
       if (handsFreeMode) {
         setTimeout(() => {
           startVoiceRecognition(true);
-        }, 500); // Half second pause so the speaker doesn't echo
+        }, 500); 
       }
     };
     
@@ -371,7 +367,6 @@ function cleanCell(c) {
   return String(c).replace(/^"|"$/g, '').trim();
 }
 
-// ============ CSV UPLOAD HANDLER ============
 $('csvFile').addEventListener('change', e => {
   const file = e.target.files[0];
   if (!file) return;
@@ -758,8 +753,8 @@ function parseCommand(text) {
     }
     const topStops = remaining.slice(0, 5);
     const routeNames = topStops.map((r, i) => {
-      const dist = distanceTo(r);
-      return `${i + 1}. ${getName(r)}${dist !== null ? ` (${dist.toFixed(1)} km)` : ''}`;
+      const addr = getAddress(r);
+      return `${i + 1}. ${getName(r)} at ${addr}`;
     });
     return `Your next 5 stops are: ${routeNames.join('. ')}. There are ${remaining.length} stops remaining.`;
   }
@@ -805,7 +800,7 @@ function parseCommand(text) {
     remaining.sort((a, b) => getReject(b) - getReject(a));
     const worst = remaining[0];
     const dist = distanceTo(worst);
-    return `The worst kiosk right now is ${getName(worst)} in ${getCity(worst)}. Reject rate is ${getReject(worst).toFixed(1)} percent.${dist !== null ? ` It is ${dist.toFixed(1)} kilometres away.` : ''}`;
+    return `The worst kiosk right now is ${getName(worst)} in ${getCity(worst)} at ${getAddress(worst)}. Reject rate is ${getReject(worst).toFixed(1)} percent.${dist !== null ? ` It is ${dist.toFixed(1)} kilometres away.` : ''}`;
   }
 
   if (t.match(/how many|time|left/)) {
@@ -839,7 +834,7 @@ function parseCommand(text) {
     const near = findNearby(10);
     if (!near || !near.length) return 'No Alberta assets within 10 kilometres.';
     const top = near.slice(0, 3)
-      .map(x => `${getName(x.asset)} at ${x.dist.toFixed(1)} kilometres`)
+      .map(x => `${getName(x.asset)} at ${getAddress(x.asset)}`)
       .join('. ');
     return `Found ${near.length} nearby. Closest: ${top}.`;
   }
@@ -874,7 +869,7 @@ function parseCommand(text) {
 // ============ SPEECH RECOGNITION (VOICE ENGINE) ============
 function startVoiceRecognition(isAutoRestart = false) {
   if (!allData.length) return toast('Load CSV first');
-  if (isListening) return; // Prevent double-starting
+  if (isListening) return; 
 
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) return toast('Voice not supported on this browser');
@@ -886,7 +881,6 @@ function startVoiceRecognition(isAutoRestart = false) {
     $('status').textContent = '⏳ Get ready…';
   }
   
-  // Delay to prevent speaker echo
   setTimeout(() => {
     try {
       recognition = new SR();
@@ -903,12 +897,12 @@ function startVoiceRecognition(isAutoRestart = false) {
         
         const reply = parseCommand(text);
         if (reply) speak(reply);
-        else if (handsFreeMode) startVoiceRecognition(true); // If action (like Skip), keep hands-free going
+        else if (handsFreeMode) startVoiceRecognition(true);
       };
 
       recognition.onerror = e => {
         isListening = false;
-        $('micBtn').classList.remove('listening');
+        $('micBtn').classList.remove('listening', 'thinking');
         if (e.error === 'not-allowed') toast('Mic permission denied');
         else if (e.error === 'no-speech') {
           if (!isAutoRestart) $('status').textContent = 'Didn\'t hear anything. Tap to try again.';
@@ -918,6 +912,7 @@ function startVoiceRecognition(isAutoRestart = false) {
       recognition.onend = () => {
         isListening = false;
         $('micBtn').classList.remove('listening');
+        // FIX: If she didn't speak (no reply was generated), turn mic back to idle (Red)
         if (!$('micBtn').classList.contains('thinking')) {
           $('status').textContent = 'Tap the mic to talk.';
         }
@@ -937,14 +932,14 @@ function startVoiceRecognition(isAutoRestart = false) {
       toast('Could not start listening');
       $('micBtn').classList.remove('thinking');
     }
-  }, isAutoRestart ? 800 : 1200); // Longer delay if auto-restarting to clear echo
+  }, isAutoRestart ? 800 : 1200); 
 }
 
 $('micBtn').addEventListener('click', () => {
   if (isListening) {
     isListening = false;
     if (recognition) recognition.stop();
-    $('micBtn').classList.remove('listening');
+    $('micBtn').classList.remove('listening', 'thinking');
     $('status').textContent = 'Paused. Tap the mic to talk.';
   } else {
     startVoiceRecognition(false);
