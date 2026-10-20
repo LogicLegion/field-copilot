@@ -494,8 +494,15 @@ function getStatus(r) {
   const state = String(firstVal(r, ['Kiosk State', 'Asset State', 'State']) || '').trim();
   if (state === 'Offline') return 'Offline';
   if (/^OOS/.test(state)) return 'Offline';
-  if (state === 'Full' || state === 'Paper Out' || state === 'Partner') return 'Warning';
+  
   const rej = getReject(r);
+  const uptime = getUptime(r);
+  
+  if (state === 'Full' || state === 'Paper Out') return 'Warning';
+  if (state === 'Partner') {
+    return (rej >= 8 || uptime < 98) ? 'Warning' : 'Good';
+  }
+
   if (rej >= 8) return 'Critical';
   if (rej >= 4) return 'Warning';
   return 'Good';
@@ -743,14 +750,14 @@ function parseCommand(text) {
     return spokenNextStop(r);
   }
 
-  // ADVANCED ROUTE PLANNER (Location-Aware, Max 4 per city)
+  // ADVANCED ROUTE PLANNER (Severity-First, Location-Agnostic)
   if (t.match(/route|list|plan|stops/)) {
     let remaining = allData.filter(r =>
       !visited.has(getSiteId(r)) && !skipped.has(getSiteId(r)) && (getProvince(r) || '').toUpperCase() === 'AB'
     );
     if (!remaining.length) return 'All stops are complete. Great work.';
     
-    // Rank by severity/commitment
+    // Rank by absolute severity (ignoring distance entirely)
     remaining.map(r => {
       const severity = getReject(r) * (getVol(r) + 1);
       const offlineBoost = (firstVal(r, ['Kiosk State']) || '') === 'Offline' ? 1.5 : 1.0;
@@ -768,43 +775,29 @@ function parseCommand(text) {
       else other.push(r);
     });
 
-    // Determine where the user is
-    let userCity = '';
-    if (currentPos) {
-      const closest = remaining.reduce((prev, curr) => {
-        const dPrev = distanceTo(prev);
-        const dCurr = distanceTo(curr);
-        if (dPrev === null) return curr;
-        if (dCurr === null) return prev;
-        return dCurr < dPrev ? curr : prev;
-      });
-      userCity = getCity(closest).toLowerCase();
-    }
-
     let plan = '';
+    const edTop = edmonton.slice(0, 4);
+    const calTop = calgary.slice(0, 4);
 
-    if (userCity.includes('edmonton') || (!userCity && edmonton.length)) {
-      const edTop = edmonton.slice(0, 4);
-      if (edTop.length) {
-        plan = `Edmonton plan. ${edTop.map(r => `${getName(r)} at ${getAddress(r)}`).join('. ')}.`;
-        if (calgary.length && !userCity.includes('edmonton')) {
-          plan = `Plan: ${edTop.map(r => `${getName(r)} at ${getAddress(r)}`).join('. ')}.`;
-        }
-      }
-    } else if (userCity.includes('calgary')) {
-      const calTop = calgary.slice(0, 4);
-      if (calTop.length) {
-        plan = `Calgary plan. ${calTop.map(r => `${getName(r)} at ${getAddress(r)}`).join('. ')}.`;
-      }
-    } 
+    // Check which city has the absolute worst kiosk
+    const worstEd = edTop.length ? edTop[0]._score : 0;
+    const worstCal = calTop.length ? calTop[0]._score : 0;
 
-    if (!plan) {
-      if (edmonton.length && calgary.length) {
-        const mixed = [...edmonton.slice(0, 2), ...calgary.slice(0, 2)];
-        plan = `Split plan. ` + mixed.map(r => `${getName(r)} at ${getAddress(r)}`).join('. ') + `.`;
+    if (worstCal > worstEd * 1.2) {
+      // Calgary has a significantly worse kiosk. Send him there.
+      plan = `Warning: The worst kiosks are in Calgary. Calgary plan: ${calTop.map(r => `${getName(r)} at ${getAddress(r)}`).join(', then ')}.`;
+    } else if (worstEd > worstCal * 1.2) {
+      // Edmonton has the worst fire.
+      plan = `Edmonton plan. ${edTop.map(r => `${getName(r)} at ${getAddress(r)}`).join(', then ')}.`;
+    } else {
+      // Mixed day
+      if (edTop.length && calTop.length) {
+        const mixed = [...edTop.slice(0, 2), ...calTop.slice(0, 2)];
+        plan = `Split plan. ` + mixed.map(r => `${getName(r)} at ${getAddress(r)}`).join(', then ') + `.`;
+      } else if (edTop.length) {
+        plan = `Edmonton plan. ${edTop.map(r => `${getName(r)} at ${getAddress(r)}`).join(', then ')}.`;
       } else {
-        const topOther = remaining.slice(0, 4);
-        plan = `Top plan. ` + topOther.map(r => `${getName(r)} in ${getCity(r)}`).join('. ') + `.`;
+        plan = `Calgary plan. ${calTop.map(r => `${getName(r)} at ${getAddress(r)}`).join(', then ')}.`;
       }
     }
 
@@ -887,7 +880,7 @@ function parseCommand(text) {
     if (!near || !near.length) return 'No Alberta assets within 10 kilometres.';
     const top = near.slice(0, 3)
       .map(x => `${getName(x.asset)} at ${getAddress(x.asset)}`)
-      .join('. ');
+      .join(', then ');
     return `Found ${near.length} nearby. Closest: ${top}.`;
   }
 
