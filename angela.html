@@ -4,33 +4,42 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#0b0f19">
+<meta name="theme-color" content="#222831">
+<meta name="color-scheme" content="dark">
 <title>Angela — Field Copilot</title>
 <style>
+  /* FORCE WRAPPER TO PREVENT BROWSER BLACK OVERRIDE */
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  body {
+  
+  html, body {
+    background-color: #222831 !important;
+    color: #eeeeee !important;
+    min-height: 100vh;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    /* Richer dark blue/slate background with a subtle top glow */
-    background: #0b0f19;
-    background-image: radial-gradient(circle at 50% -20%, #1c2b45 0%, #0b0f19 60%);
-    background-attachment: fixed;
-    color: #e6edf3;
-    min-height: 100vh; padding: 16px;
-    display: flex; flex-direction: column; align-items: center;
+  }
+
+  /* The app wrapper forces the color to stick */
+  .app-wrapper {
+    background-color: #222831;
+    min-height: 100vh;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
     padding-bottom: 40px;
   }
-  h1 { font-size: 1.4rem; margin-bottom: 4px; letter-spacing: -0.5px; color: #fff; }
-  .status { color: #8b949e; font-size: 0.85rem; margin-bottom: 12px; text-align: center; min-height: 18px; font-weight: 500; }
+
+  h1 { font-size: 1.4rem; margin-bottom: 4px; letter-spacing: -0.5px; color: #ffffff; }
+  .status { color: #b0b8c4; font-size: 0.85rem; margin-bottom: 12px; text-align: center; min-height: 18px; font-weight: 500; }
 
   /* Improved Toggle */
   .toggle-container {
     display: flex; align-items: center; justify-content: space-between;
-    background: rgba(22, 27, 34, 0.8); backdrop-filter: blur(8px);
-    border: 1px solid #30363d; padding: 12px 16px; 
+    background: #393e46; border: 1px solid #4b5563; padding: 12px 16px; 
     border-radius: 16px; margin-bottom: 12px; cursor: pointer; width: 100%; max-width: 420px;
-    transition: all 0.2s; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    transition: all 0.2s;
   }
-  .toggle-container:hover { border-color: #58a6ff; }
   .toggle-switch {
     width: 44px; height: 24px; background: #6e7681; border-radius: 20px;
     position: relative; transition: 0.3s;
@@ -42,45 +51,39 @@
   }
   .toggle-container.active .toggle-switch { background: #238636; }
   .toggle-container.active .toggle-switch::after { transform: translateX(20px); }
-  .toggle-label { font-size: 0.85rem; font-weight: 600; color: #8b949e; }
+  .toggle-label { font-size: 0.85rem; font-weight: 600; color: #b0b8c4; }
   .toggle-container.active .toggle-label { color: #3fb950; }
 
   /* Improved Chips */
   .chips-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 16px; width: 100%; max-width: 420px; }
   .chip {
-    background: rgba(22, 27, 34, 0.8); backdrop-filter: blur(8px);
-    border: 1px solid #30363d; border-radius: 20px;
-    padding: 6px 14px; font-size: 0.75rem; color: #8b949e;
+    background: #393e46; border: 1px solid #4b5563; border-radius: 20px;
+    padding: 6px 14px; font-size: 0.75rem; color: #b0b8c4;
     display: inline-flex; align-items: center; gap: 6px; font-weight: 500;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
   }
   .chip.on  { color: #3fb950; border-color: #238636; background: rgba(35,134,54,.15); }
-  .chip.off { color: #8b949e; }
+  .chip.off { color: #b0b8c4; }
   .chip.active-commit { background: rgba(218, 54, 51, .15); color: #ff7b72; border-color: #da3633; font-weight: 700; cursor: pointer;}
   .chip.clickable { cursor: pointer; transition: all .2s; }
-  .chip.clickable:hover { background: #21262d; }
+  .chip.clickable:hover { background: #4b5563; }
   .chip .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; display: inline-block; }
 
   .progress {
-    background: rgba(22, 27, 34, 0.8); backdrop-filter: blur(8px);
-    border-radius: 12px; padding: 12px 16px;
+    background: #393e46; border-radius: 12px; padding: 12px 16px;
     font-size: 0.9rem; width: 100%; max-width: 420px;
     display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 16px; border: 1px solid #30363d;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    margin-bottom: 16px; border: 1px solid #4b5563;
   }
   .progress .count { color: #58a6ff; font-weight: 700; font-size: 1rem; }
 
   .load-box {
-    background: rgba(22, 27, 34, 0.8); backdrop-filter: blur(8px);
-    border: 2px dashed #30363d; border-radius: 16px;
+    background: #393e46; border: 2px dashed #4b5563; border-radius: 16px;
     padding: 20px; text-align: center; margin-bottom: 16px;
     width: 100%; max-width: 420px; cursor: pointer; transition: all 0.2s;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   }
-  .load-box:hover { border-color: #58a6ff; background: #1c2128; }
+  .load-box:hover { border-color: #58a6ff; background: #4b5563; }
   .load-box input { display: none; }
-  .load-box small { color: #8b949e; display: block; margin-top: 6px; font-size: 0.8rem; }
+  .load-box small { color: #b0b8c4; display: block; margin-top: 6px; font-size: 0.8rem; }
 
   /* Mic Button */
   .mic {
@@ -103,24 +106,23 @@
 
   /* Next Stop Card */
   .next-card {
-    background: linear-gradient(145deg, #161b22, #1c2531);
-    border: 1px solid #30363d; border-radius: 20px;
+    background: #393e46; border: 1px solid #4b5563; border-radius: 20px;
     padding: 20px; width: 100%; max-width: 420px;
-    margin-bottom: 16px; display: none; box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+    margin-bottom: 16px; display: none; box-shadow: 0 8px 24px rgba(0,0,0,0.3);
   }
   .next-card.show { display: block; }
   .next-card .label {
     font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;
-    color: #8b949e; margin-bottom: 12px; font-weight: 700;
+    color: #b0b8c4; margin-bottom: 12px; font-weight: 700;
   }
   .next-card .name {
-    font-size: 1.4rem; font-weight: 800; color: #fff;
+    font-size: 1.4rem; font-weight: 800; color: #ffffff;
     margin-bottom: 6px; line-height: 1.2; letter-spacing: -0.5px;
   }
-  .next-card .address { font-size: 0.9rem; color: #8b949e; margin-bottom: 14px; line-height: 1.4; }
+  .next-card .address { font-size: 0.9rem; color: #b0b8c4; margin-bottom: 14px; line-height: 1.4; }
   .next-card .distance {
     font-size: 0.85rem; color: #58a6ff; margin-bottom: 14px; font-weight: 700;
-    display: inline-flex; align-items: center; gap: 6px; background: rgba(88,166,255,.1); padding: 4px 10px; border-radius: 8px;
+    display: inline-flex; align-items: center; gap: 6px; background: rgba(88,166,255,.15); padding: 4px 10px; border-radius: 8px;
   }
   .next-card .commitment-line {
     font-size: 0.85rem; margin-bottom: 14px; font-weight: 600;
@@ -131,10 +133,10 @@
   
   .next-card .metrics { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
   .metric {
-    background: #0b0f19; border-radius: 10px; padding: 8px 12px;
-    font-size: 0.8rem; color: #8b949e; flex: 1; text-align: center; border: 1px solid #21262d;
+    background: #222831; border-radius: 10px; padding: 8px 12px;
+    font-size: 0.8rem; color: #b0b8c4; flex: 1; text-align: center; border: 1px solid #4b5563;
   }
-  .metric strong { display: block; color: #e6edf3; font-size: 1.1rem; margin-top: 2px; }
+  .metric strong { display: block; color: #ffffff; font-size: 1.1rem; margin-top: 2px; }
 
   .status-badge {
     display: inline-block; padding: 4px 12px; border-radius: 20px;
@@ -150,44 +152,40 @@
   .actions button {
     padding: 16px 8px; border-radius: 14px; border: none;
     font-size: 0.95rem; font-weight: 700; cursor: pointer;
-    transition: all .15s; color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    transition: all .15s; color: white;
   }
   .actions button:active { transform: scale(.96); }
   .btn-call { background: #1f6feb; }
   .btn-call:hover { background: #388bfd; }
   .btn-done { background: #238636; }
   .btn-done:hover { background: #2ea043; }
-  .btn-skip { background: #30363d; color: #c9d1d9; }
-  .btn-skip:hover { background: #3f4650; }
+  .btn-skip { background: #4b5563; color: #ffffff; }
+  .btn-skip:hover { background: #6b7280; }
 
   /* Chat Panels */
   .panel {
-    background: rgba(22, 27, 34, 0.8); backdrop-filter: blur(8px);
-    border-radius: 16px; padding: 16px;
+    background: #393e46; border-radius: 16px; padding: 16px;
     margin-top: 12px; width: 100%; max-width: 420px;
-    font-size: 0.9rem; border: 1px solid #30363d;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    font-size: 0.9rem; border: 1px solid #4b5563;
   }
-  .panel .label { color: #8b949e; font-size: 0.7rem; text-transform: uppercase; margin-bottom: 6px; font-weight: 700; letter-spacing: 0.5px; }
-  .panel .value { color: #e6edf3; line-height: 1.5; font-weight: 500; }
+  .panel .label { color: #b0b8c4; font-size: 0.7rem; text-transform: uppercase; margin-bottom: 6px; font-weight: 700; letter-spacing: 0.5px; }
+  .panel .value { color: #ffffff; line-height: 1.5; font-weight: 500; }
 
   .commands {
     margin-top: 24px; width: 100%; max-width: 420px;
-    background: rgba(22, 27, 34, 0.8); backdrop-filter: blur(8px);
-    border-radius: 16px; padding: 16px; font-size: 0.85rem; border: 1px solid #30363d;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    background: #393e46; border-radius: 16px; padding: 16px; font-size: 0.85rem; border: 1px solid #4b5563;
   }
   .commands h3 { color: #58a6ff; margin-bottom: 10px; font-size: 0.9rem; font-weight: 700; }
-  .commands li { color: #8b949e; margin: 6px 0; list-style: none; display: flex; align-items: center; gap: 8px; }
+  .commands li { color: #b0b8c4; margin: 6px 0; list-style: none; display: flex; align-items: center; gap: 8px; }
   .commands li::before { content: "🎤"; font-size: 0.8rem; opacity: 0.7; }
 
   .reset-btn {
-    margin-top: 20px; background: transparent; color: #8b949e;
-    border: 1px solid #30363d; padding: 10px 24px; border-radius: 20px;
+    margin-top: 20px; background: transparent; color: #b0b8c4;
+    border: 1px solid #4b5563; padding: 10px 24px; border-radius: 20px;
     font-size: 0.85rem; cursor: pointer; transition: all 0.2s;
   }
-  .reset-btn:hover { background: #21262d; color: #c9d1d9; }
-  .reset-btn:active { background: #30363d; }
+  .reset-btn:hover { background: #393e46; color: #ffffff; }
+  .reset-btn:active { background: #4b5563; }
 
   .toast {
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
@@ -199,6 +197,7 @@
 </style>
 </head>
 <body>
+<div class="app-wrapper">
 
 <h1>🎙️ Angela</h1>
 <div class="status" id="status">Upload your CSV to begin</div>
@@ -1036,5 +1035,6 @@ if (navigator.geolocation) {
   updateGpsChip('off', 'GPS: not supported');
 }
 </script>
+</div>
 </body>
 </html>
