@@ -5,30 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#222831">
-<meta name="color-scheme" content="dark">
 <title>Angela — Field Copilot</title>
 <style>
-  /* FORCE WRAPPER TO PREVENT BROWSER BLACK OVERRIDE */
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  
-  html, body {
+  /* FIREFOX BACKGROUND FIX */
+  html {
+    background-color: #222831 !important;
+    min-height: 100vh;
+  }
+  body {
     background-color: #222831 !important;
     color: #eeeeee !important;
     min-height: 100vh;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    margin: 0; padding: 16px; padding-bottom: 40px;
+    display: flex; flex-direction: column; align-items: center;
+    box-sizing: border-box;
   }
-
-  /* The app wrapper forces the color to stick */
-  .app-wrapper {
-    background-color: #222831;
-    min-height: 100vh;
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 16px;
-    padding-bottom: 40px;
-  }
+  
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
   h1 { font-size: 1.4rem; margin-bottom: 4px; letter-spacing: -0.5px; color: #ffffff; }
   .status { color: #b0b8c4; font-size: 0.85rem; margin-bottom: 12px; text-align: center; min-height: 18px; font-weight: 500; }
@@ -197,7 +191,6 @@
 </style>
 </head>
 <body>
-<div class="app-wrapper">
 
 <h1>🎙️ Angela</h1>
 <div class="status" id="status">Upload your CSV to begin</div>
@@ -1035,6 +1028,5 @@ if (navigator.geolocation) {
   updateGpsChip('off', 'GPS: not supported');
 }
 </script>
-</div>
 </body>
 </html>
