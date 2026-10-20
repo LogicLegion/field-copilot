@@ -728,14 +728,14 @@ function parseCommand(text) {
     return spokenNextStop(r);
   }
 
-  // ADVANCED ROUTE PLANNER (Max 4 stops per city)
+  // ADVANCED ROUTE PLANNER (Location-Aware, Max 4 per city)
   if (t.match(/route|list|plan|stops/)) {
     let remaining = allData.filter(r =>
       !visited.has(getSiteId(r)) && !skipped.has(getSiteId(r)) && (getProvince(r) || '').toUpperCase() === 'AB'
     );
     if (!remaining.length) return 'All stops are complete. Great work.';
     
-    // Sort by severity/commitment (ignore distance for the ranking)
+    // Rank by severity/commitment
     remaining.map(r => {
       const severity = getReject(r) * (getVol(r) + 1);
       const offlineBoost = (firstVal(r, ['Kiosk State']) || '') === 'Offline' ? 1.5 : 1.0;
@@ -745,36 +745,59 @@ function parseCommand(text) {
     });
     remaining.sort((a, b) => b._score - a._score);
 
-    // Group into cities (Edmonton, Calgary, Other)
-    const edmonton = [], calgary = [];
+    const edmonton = [], calgary = [], other = [];
     remaining.forEach(r => {
       const city = getCity(r).toLowerCase();
       if (city.includes('edmonton')) edmonton.push(r);
       else if (city.includes('calgary')) calgary.push(r);
+      else other.push(r);
     });
 
-    // Take max 4 per city
-    const edTop = edmonton.slice(0, 4);
-    const calTop = calgary.slice(0, 4);
-
-    let routeSpeech = '';
-    if (edTop.length && calTop.length) {
-      routeSpeech = `Plan: ${edTop.length} stops in Edmonton, ${calTop.length} in Calgary. `;
-      routeSpeech += `Edmonton: ${edTop.map(r => `${getName(r)} at ${getAddress(r)}`).join('. ')}. `;
-      routeSpeech += `Calgary: ${calTop.map(r => `${getName(r)} at ${getAddress(r)}`).join('. ')}.`;
-    } else if (edTop.length) {
-      routeSpeech = `Plan: ${edTop.length} stops in Edmonton. `;
-      routeSpeech += edTop.map(r => `${getName(r)} at ${getAddress(r)}`).join('. ');
-    } else if (calTop.length) {
-      routeSpeech = `Plan: ${calTop.length} stops in Calgary. `;
-      routeSpeech += calTop.map(r => `${getName(r)} at ${getAddress(r)}`).join('. ');
-    } else {
-      // Just top 4 of whatever is left
-      const topOther = remaining.slice(0, 4);
-      routeSpeech = `Plan: Top ${topOther.length} stops. ` + topOther.map(r => `${getName(r)} in ${getCity(r)}`).join('. ');
+    // Determine where the user is
+    let userCity = '';
+    if (currentPos) {
+      const closest = remaining.reduce((prev, curr) => {
+        const dPrev = distanceTo(prev);
+        const dCurr = distanceTo(curr);
+        if (dPrev === null) return curr;
+        if (dCurr === null) return prev;
+        return dCurr < dPrev ? curr : prev;
+      });
+      userCity = getCity(closest).toLowerCase();
     }
 
-    return routeSpeech;
+    let plan = '';
+
+    if (userCity.includes('edmonton') || (!userCity && edmonton.length)) {
+      // User is in or near Edmonton (or GPS is off)
+      const edTop = edmonton.slice(0, 4);
+      if (edTop.length) {
+        plan = `Edmonton plan. ${edTop.map(r => `${getName(r)} at ${getAddress(r)}`).join('. ')}.`;
+        if (calgary.length && !userCity.includes('edmonton')) {
+          // fallback just in case
+          plan = `Plan: ${edTop.map(r => `${getName(r)} at ${getAddress(r)}`).join('. ')}.`;
+        }
+      }
+    } else if (userCity.includes('calgary')) {
+      // User is in or near Calgary
+      const calTop = calgary.slice(0, 4);
+      if (calTop.length) {
+        plan = `Calgary plan. ${calTop.map(r => `${getName(r)} at ${getAddress(r)}`).join('. ')}.`;
+      }
+    } 
+
+    if (!plan) {
+      // User is somewhere else, give a split plan of top 2 from each, or top 4 of remaining
+      if (edmonton.length && calgary.length) {
+        const mixed = [...edmonton.slice(0, 2), ...calgary.slice(0, 2)];
+        plan = `Split plan. ` + mixed.map(r => `${getName(r)} at ${getAddress(r)}`).join('. ') + `.`;
+      } else {
+        const topOther = remaining.slice(0, 4);
+        plan = `Top plan. ` + topOther.map(r => `${getName(r)} in ${getCity(r)}`).join('. ') + `.`;
+      }
+    }
+
+    return plan;
   }
 
   if (t.match(/edmonton|calgary|kind of day|city|focus/)) {
