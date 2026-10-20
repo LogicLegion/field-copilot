@@ -4,26 +4,31 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#0d1117">
+<meta name="theme-color" content="#0b0f19">
 <title>Angela — Field Copilot</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: #0d1117; color: #e6edf3;
+    /* Richer dark blue/slate background with a subtle top glow */
+    background: #0b0f19;
+    background-image: radial-gradient(circle at 50% -20%, #1c2b45 0%, #0b0f19 60%);
+    background-attachment: fixed;
+    color: #e6edf3;
     min-height: 100vh; padding: 16px;
     display: flex; flex-direction: column; align-items: center;
     padding-bottom: 40px;
   }
-  h1 { font-size: 1.4rem; margin-bottom: 4px; letter-spacing: -0.5px; }
+  h1 { font-size: 1.4rem; margin-bottom: 4px; letter-spacing: -0.5px; color: #fff; }
   .status { color: #8b949e; font-size: 0.85rem; margin-bottom: 12px; text-align: center; min-height: 18px; font-weight: 500; }
 
   /* Improved Toggle */
   .toggle-container {
     display: flex; align-items: center; justify-content: space-between;
-    background: #161b22; border: 1px solid #30363d; padding: 12px 16px; 
+    background: rgba(22, 27, 34, 0.8); backdrop-filter: blur(8px);
+    border: 1px solid #30363d; padding: 12px 16px; 
     border-radius: 16px; margin-bottom: 12px; cursor: pointer; width: 100%; max-width: 420px;
-    transition: all 0.2s;
+    transition: all 0.2s; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   }
   .toggle-container:hover { border-color: #58a6ff; }
   .toggle-switch {
@@ -43,11 +48,13 @@
   /* Improved Chips */
   .chips-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 16px; width: 100%; max-width: 420px; }
   .chip {
-    background: #161b22; border: 1px solid #30363d; border-radius: 20px;
+    background: rgba(22, 27, 34, 0.8); backdrop-filter: blur(8px);
+    border: 1px solid #30363d; border-radius: 20px;
     padding: 6px 14px; font-size: 0.75rem; color: #8b949e;
     display: inline-flex; align-items: center; gap: 6px; font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
   }
-  .chip.on  { color: #3fb950; border-color: #238636; background: rgba(35,134,54,.1); }
+  .chip.on  { color: #3fb950; border-color: #238636; background: rgba(35,134,54,.15); }
   .chip.off { color: #8b949e; }
   .chip.active-commit { background: rgba(218, 54, 51, .15); color: #ff7b72; border-color: #da3633; font-weight: 700; cursor: pointer;}
   .chip.clickable { cursor: pointer; transition: all .2s; }
@@ -55,17 +62,21 @@
   .chip .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; display: inline-block; }
 
   .progress {
-    background: #161b22; border-radius: 12px; padding: 12px 16px;
+    background: rgba(22, 27, 34, 0.8); backdrop-filter: blur(8px);
+    border-radius: 12px; padding: 12px 16px;
     font-size: 0.9rem; width: 100%; max-width: 420px;
     display: flex; justify-content: space-between; align-items: center;
     margin-bottom: 16px; border: 1px solid #30363d;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   }
   .progress .count { color: #58a6ff; font-weight: 700; font-size: 1rem; }
 
   .load-box {
-    background: #161b22; border: 2px dashed #30363d; border-radius: 16px;
+    background: rgba(22, 27, 34, 0.8); backdrop-filter: blur(8px);
+    border: 2px dashed #30363d; border-radius: 16px;
     padding: 20px; text-align: center; margin-bottom: 16px;
     width: 100%; max-width: 420px; cursor: pointer; transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   }
   .load-box:hover { border-color: #58a6ff; background: #1c2128; }
   .load-box input { display: none; }
@@ -76,16 +87,16 @@
     width: 120px; height: 120px; border-radius: 50%;
     background: #da3633; border: none; color: white;
     font-size: 48px; cursor: pointer;
-    box-shadow: 0 10px 30px rgba(218,54,51,.3);
+    box-shadow: 0 10px 40px rgba(218,54,51,.4);
     transition: all .2s; margin: 8px 0 24px;
     display: flex; align-items: center; justify-content: center;
   }
   .mic:active { transform: scale(.95); }
-  .mic.listening { background: #238636; box-shadow: 0 10px 30px rgba(35,134,54,.4); animation: pulse 1.5s infinite; }
-  .mic.thinking { background: #d29922; box-shadow: 0 10px 30px rgba(210,153,34,.4); animation: pulse 1.5s infinite; }
+  .mic.listening { background: #238636; box-shadow: 0 10px 40px rgba(35,134,54,.5); animation: pulse 1.5s infinite; }
+  .mic.thinking { background: #d29922; box-shadow: 0 10px 40px rgba(210,153,34,.5); animation: pulse 1.5s infinite; }
   .mic:disabled { opacity: .35; cursor: not-allowed; box-shadow: none; }
   @keyframes pulse {
-    0%   { box-shadow: 0 0 0 0 rgba(35,134,54,.5); }
+    0%   { box-shadow: 0 0 0 0 rgba(35,134,54,.6); }
     70%  { box-shadow: 0 0 0 30px rgba(35,134,54,0); }
     100% { box-shadow: 0 0 0 0 rgba(35,134,54,0); }
   }
@@ -95,7 +106,7 @@
     background: linear-gradient(145deg, #161b22, #1c2531);
     border: 1px solid #30363d; border-radius: 20px;
     padding: 20px; width: 100%; max-width: 420px;
-    margin-bottom: 16px; display: none; box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    margin-bottom: 16px; display: none; box-shadow: 0 12px 32px rgba(0,0,0,0.4);
   }
   .next-card.show { display: block; }
   .next-card .label {
@@ -103,7 +114,7 @@
     color: #8b949e; margin-bottom: 12px; font-weight: 700;
   }
   .next-card .name {
-    font-size: 1.4rem; font-weight: 800; color: #e6edf3;
+    font-size: 1.4rem; font-weight: 800; color: #fff;
     margin-bottom: 6px; line-height: 1.2; letter-spacing: -0.5px;
   }
   .next-card .address { font-size: 0.9rem; color: #8b949e; margin-bottom: 14px; line-height: 1.4; }
@@ -120,7 +131,7 @@
   
   .next-card .metrics { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
   .metric {
-    background: #0d1117; border-radius: 10px; padding: 8px 12px;
+    background: #0b0f19; border-radius: 10px; padding: 8px 12px;
     font-size: 0.8rem; color: #8b949e; flex: 1; text-align: center; border: 1px solid #21262d;
   }
   .metric strong { display: block; color: #e6edf3; font-size: 1.1rem; margin-top: 2px; }
@@ -151,16 +162,20 @@
 
   /* Chat Panels */
   .panel {
-    background: #161b22; border-radius: 16px; padding: 16px;
+    background: rgba(22, 27, 34, 0.8); backdrop-filter: blur(8px);
+    border-radius: 16px; padding: 16px;
     margin-top: 12px; width: 100%; max-width: 420px;
     font-size: 0.9rem; border: 1px solid #30363d;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   }
   .panel .label { color: #8b949e; font-size: 0.7rem; text-transform: uppercase; margin-bottom: 6px; font-weight: 700; letter-spacing: 0.5px; }
   .panel .value { color: #e6edf3; line-height: 1.5; font-weight: 500; }
 
   .commands {
     margin-top: 24px; width: 100%; max-width: 420px;
-    background: #161b22; border-radius: 16px; padding: 16px; font-size: 0.85rem; border: 1px solid #30363d;
+    background: rgba(22, 27, 34, 0.8); backdrop-filter: blur(8px);
+    border-radius: 16px; padding: 16px; font-size: 0.85rem; border: 1px solid #30363d;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   }
   .commands h3 { color: #58a6ff; margin-bottom: 10px; font-size: 0.9rem; font-weight: 700; }
   .commands li { color: #8b949e; margin: 6px 0; list-style: none; display: flex; align-items: center; gap: 8px; }
@@ -178,7 +193,7 @@
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
     background: #238636; color: white; padding: 12px 24px; border-radius: 30px;
     font-size: 0.9rem; font-weight: 600; opacity: 0; transition: opacity .3s;
-    pointer-events: none; z-index: 999; box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    pointer-events: none; z-index: 999; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
   }
   .toast.show { opacity: 1; }
 </style>
@@ -769,17 +784,14 @@ function parseCommand(text) {
     let plan = '';
 
     if (userCity.includes('edmonton') || (!userCity && edmonton.length)) {
-      // User is in or near Edmonton (or GPS is off)
       const edTop = edmonton.slice(0, 4);
       if (edTop.length) {
         plan = `Edmonton plan. ${edTop.map(r => `${getName(r)} at ${getAddress(r)}`).join('. ')}.`;
         if (calgary.length && !userCity.includes('edmonton')) {
-          // fallback just in case
           plan = `Plan: ${edTop.map(r => `${getName(r)} at ${getAddress(r)}`).join('. ')}.`;
         }
       }
     } else if (userCity.includes('calgary')) {
-      // User is in or near Calgary
       const calTop = calgary.slice(0, 4);
       if (calTop.length) {
         plan = `Calgary plan. ${calTop.map(r => `${getName(r)} at ${getAddress(r)}`).join('. ')}.`;
@@ -787,7 +799,6 @@ function parseCommand(text) {
     } 
 
     if (!plan) {
-      // User is somewhere else, give a split plan of top 2 from each, or top 4 of remaining
       if (edmonton.length && calgary.length) {
         const mixed = [...edmonton.slice(0, 2), ...calgary.slice(0, 2)];
         plan = `Split plan. ` + mixed.map(r => `${getName(r)} at ${getAddress(r)}`).join('. ') + `.`;
