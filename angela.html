@@ -259,7 +259,7 @@
   <h3>Voice Commands</h3>
   <ul>
     <li>"Plan my route"</li>
-    <li>"Yes" or "Calgary" (to select a loop)</li>
+    <li>"Edmonton" or "Calgary" (to pick)</li>
     <li>"What's my next stop?"</li>
     <li>"Give me a status report"</li>
     <li>"Where is the worst kiosk?"</li>
@@ -419,6 +419,7 @@ $('csvFile').addEventListener('change', e => {
       // Reset the loop when a new CSV loads
       activeLoop = null;
       loopStops = [];
+      window._pendingPlan = null;
 
       $('csvStatus').textContent = `✅ ${allData.length} assets loaded`;
       $('status').textContent = 'Ready. Tap the mic and talk.';
@@ -569,7 +570,7 @@ function distanceTo(r) {
 
 // ============ NEXT STOP ============
 function getNextStop() {
-  // 1. If a loop is active, we ONLY look at the loop stops
+  // 1. If a loop is active, we ONLY look at the loop stops in order
   if (activeLoop && loopStops.length) {
     for (let sid of loopStops) {
       if (!visited.has(sid) && !skipped.has(sid)) {
@@ -776,13 +777,13 @@ function parseCommand(text) {
     
     // Check if the user is confirming a plan
     if (t.includes('edmonton') || t === 'yes' || t === 'yeah') {
-      if (window._pendingPlan === 'edmonton') {
+      if (window._pendingPlan === 'edmonton' || window._pendingPlan === 'split') {
         buildLoop('edmonton');
         return "Route locked. Starting with the farthest Edmonton stop and heading back towards the city.";
       }
     }
     if (t.includes('calgary')) {
-      if (window._pendingPlan === 'calgary' || window._pendingPlan === 'edmonton') {
+      if (window._pendingPlan === 'calgary' || window._pendingPlan === 'split' || window._pendingPlan === 'edmonton') {
         buildLoop('calgary');
         return "Route locked. Starting with the farthest Calgary stop and working your way back.";
       }
@@ -929,7 +930,6 @@ function buildLoop(cityName) {
   const top4 = cityKiosks.slice(0, 4);
 
   // Now sort those 4 by distance to Edmonton (Farthest first)
-  // Safeway 8805 in Banff is the proxy for "Far South"
   const EDMONTON_LAT = 53.5461, EDMONTON_LON = -113.4938;
   
   top4.sort((a, b) => {
