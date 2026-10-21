@@ -794,37 +794,39 @@ function parseCommand(text) {
       }
     }
 
-    // Otherwise, analyze the fires
-    let remaining = allData.filter(r =>
-      !visited.has(getSiteId(r)) && !skipped.has(getSiteId(r)) && (getProvince(r) || '').toUpperCase() === 'AB'
-    );
-    if (!remaining.length) return 'All stops are complete.';
-    
-    // Rank by pure severity (ignore distance)
-    remaining.map(r => {
-      const severity = getReject(r) * (getVol(r) + 1);
-      const offlineBoost = (firstVal(r, ['Kiosk State']) || '') === 'Offline' ? 1.5 : 1.0;
-      let commitBoost = isCommitmentKiosk(r) ? (isBelowCommitment(r) ? 2.5 : 1.5) : 1.0;
-      r._score = severity * offlineBoost * commitBoost;
-      return r;
-    });
-    remaining.sort((a, b) => b._score - a._score);
+    // Otherwise, analyze the fires (ONLY IF we aren't already waiting for an answer)
+    if (!pendingPlan) {
+      let remaining = allData.filter(r =>
+        !visited.has(getSiteId(r)) && !skipped.has(getSiteId(r)) && (getProvince(r) || '').toUpperCase() === 'AB'
+      );
+      if (!remaining.length) return 'All stops are complete.';
+      
+      // Rank by pure severity (ignore distance)
+      remaining.map(r => {
+        const severity = getReject(r) * (getVol(r) + 1);
+        const offlineBoost = (firstVal(r, ['Kiosk State']) || '') === 'Offline' ? 1.5 : 1.0;
+        let commitBoost = isCommitmentKiosk(r) ? (isBelowCommitment(r) ? 2.5 : 1.5) : 1.0;
+        r._score = severity * offlineBoost * commitBoost;
+        return r;
+      });
+      remaining.sort((a, b) => b._score - a._score);
 
-    const edmonton = remaining.filter(r => getCity(r).toLowerCase().includes('edmonton'));
-    const calgary = remaining.filter(r => getCity(r).toLowerCase().includes('calgary'));
+      const edmonton = remaining.filter(r => getCity(r).toLowerCase().includes('edmonton'));
+      const calgary = remaining.filter(r => getCity(r).toLowerCase().includes('calgary'));
 
-    const worstEd = edmonton.length ? edmonton[0]._score : 0;
-    const worstCal = calgary.length ? calgary[0]._score : 0;
+      const worstEd = edmonton.length ? edmonton[0]._score : 0;
+      const worstCal = calgary.length ? calgary[0]._score : 0;
 
-    if (worstCal > worstEd * 1.2) {
-      pendingPlan = 'calgary';
-      return `It's a Calgary day. The worst kiosks are in Calgary. Do you want the Calgary loop?`;
-    } else if (worstEd > worstCal * 1.2) {
-      pendingPlan = 'edmonton';
-      return `It's an Edmonton day. The worst kiosks are in Edmonton. Do you want the Edmonton loop?`;
-    } else {
-      pendingPlan = 'split';
-      return `It's a split day. Do you want the Edmonton loop or the Calgary loop?`;
+      if (worstCal > worstEd * 1.2) {
+        pendingPlan = 'calgary';
+        return `It's a Calgary day. The worst kiosks are in Calgary. Do you want the Calgary loop?`;
+      } else if (worstEd > worstCal * 1.2) {
+        pendingPlan = 'edmonton';
+        return `It's an Edmonton day. The worst kiosks are in Edmonton. Do you want the Edmonton loop?`;
+      } else {
+        pendingPlan = 'split';
+        return `It's a split day. Do you want the Edmonton loop or the Calgary loop?`;
+      }
     }
   }
 
