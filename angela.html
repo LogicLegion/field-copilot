@@ -286,6 +286,7 @@ let recognition = null;
 let currentStopId = null;
 let commitmentModeOnly = false;
 let handsFreeMode = false; 
+let isSpeaking = false; // HARD MUTE SWITCH
 
 // The NEW Loop Route State
 let activeLoop = null; // 'edmonton', 'calgary', or null
@@ -327,6 +328,7 @@ function speak(text) {
   $('reply').textContent = text;
   try {
     window.speechSynthesis.cancel();
+    isSpeaking = true; // LOCK THE MIC
     $('micBtn').classList.remove('listening');
     $('micBtn').classList.add('thinking');
     
@@ -335,18 +337,20 @@ function speak(text) {
     u.lang = 'en-CA';
     
     u.onend = () => {
+      isSpeaking = false; // UNLOCK THE MIC
       $('micBtn').classList.remove('thinking');
       $('status').textContent = 'Tap the mic to talk.';
       
       if (handsFreeMode) {
         setTimeout(() => {
           startVoiceRecognition(true);
-        }, 500); 
+        }, 800); 
       }
     };
     
     window.speechSynthesis.speak(u);
   } catch (e) { 
+    isSpeaking = false;
     console.warn('Speech failed:', e); 
   }
 }
@@ -416,7 +420,6 @@ $('csvFile').addEventListener('change', e => {
 
       computeCommitmentKiosks();
       
-      // Reset the loop when a new CSV loads
       activeLoop = null;
       loopStops = [];
       window._pendingPlan = null;
@@ -949,6 +952,7 @@ function buildLoop(cityName) {
 function startVoiceRecognition(isAutoRestart = false) {
   if (!allData.length) return toast('Load CSV first');
   if (isListening) return; 
+  if (isSpeaking) return; // HARD LOCK: DO NOT LISTEN IF SHE IS TALKING
 
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) return toast('Voice not supported on this browser');
