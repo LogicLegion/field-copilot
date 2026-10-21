@@ -258,9 +258,9 @@
 <div class="commands">
   <h3>Voice Commands</h3>
   <ul>
-    <li>"What's my next stop?"</li>
     <li>"Plan my route"</li>
-    <li>"Is it an Edmonton or Calgary day?"</li>
+    <li>"Yes" or "Calgary" (to select a loop)</li>
+    <li>"What's my next stop?"</li>
     <li>"Give me a status report"</li>
     <li>"Where is the worst kiosk?"</li>
     <li>"How many stops are left?"</li>
@@ -287,6 +287,10 @@ let currentStopId = null;
 let commitmentModeOnly = false;
 let handsFreeMode = false; 
 
+// The NEW Loop Route State
+let activeLoop = null; // 'edmonton', 'calgary', or null
+let loopStops = [];    // Array of siteIds in the specific order for the day
+
 const COMMITMENT_TARGET = 98;
 let commitmentKioskIds = new Set();
 
@@ -303,7 +307,7 @@ $('handsFreeToggle').addEventListener('click', () => {
   if (handsFreeMode) {
     el.classList.add('active');
     $('handsFreeLabel').textContent = 'Hands-Free: ON';
-    toast('Hands-free mode on. She will listen after she replies.');
+    toast('Hands-free mode on.');
   } else {
     el.classList.remove('active');
     $('handsFreeLabel').textContent = 'Hands-Free: OFF';
@@ -411,6 +415,10 @@ $('csvFile').addEventListener('change', e => {
       }
 
       computeCommitmentKiosks();
+      
+      // Reset the loop when a new CSV loads
+      activeLoop = null;
+      loopStops = [];
 
       $('csvStatus').textContent = `✅ ${allData.length} assets loaded`;
       $('status').textContent = 'Ready. Tap the mic and talk.';
@@ -561,6 +569,22 @@ function distanceTo(r) {
 
 // ============ NEXT STOP ============
 function getNextStop() {
+  // 1. If a loop is active, we ONLY look at the loop stops
+  if (activeLoop && loopStops.length) {
+    for (let sid of loopStops) {
+      if (!visited.has(sid) && !skipped.has(sid)) {
+        const found = allData.find(r => getSiteId(r) === sid);
+        if (found) return found;
+      }
+    }
+    // If loop is done, clear it
+    activeLoop = null;
+    loopStops = [];
+    speak('Loop complete. Great work.');
+    return null;
+  }
+
+  // 2. Otherwise, normal severity/distance sorting
   let remaining = allData.filter(r =>
     !visited.has(getSiteId(r)) &&
     !skipped.has(getSiteId(r)) &&
@@ -610,7 +634,6 @@ function renderNextStop() {
   if (!r) {
     card.classList.remove('show');
     currentStopId = null;
-    speak('All stops complete. Great work.');
     return;
   }
   currentStopId = getSiteId(r);
@@ -695,6 +718,10 @@ function markDone() {
   speak(`Marked ${name} done.`);
   setTimeout(() => {
     renderNextStop();
+    if (activeLoop) {
+      const next = getNextStop();
+      if (next) speak(`Next loop stop: ${getName(next)}.`);
+    }
   }, 2000);
 }
 
@@ -744,20 +771,30 @@ function findNearby(km = 10) {
 function parseCommand(text) {
   const t = String(text).toLowerCase();
   
-  if (t.match(/next|what'?s next|where to|take me/)) {
-    const r = getNextStop();
-    if (!r) return 'All stops complete. Great work.';
-    return spokenNextStop(r);
-  }
+  // 1. PLAN MY ROUTE (The Dispatcher)
+  if (t.match(/plan|route|edmonton|calgary|kind of day|focus/)) {
+    
+    // Check if the user is confirming a plan
+    if (t.includes('edmonton') || t === 'yes' || t === 'yeah') {
+      if (window._pendingPlan === 'edmonton') {
+        buildLoop('edmonton');
+        return "Route locked. Starting with the farthest Edmonton stop and heading back towards the city.";
+      }
+    }
+    if (t.includes('calgary')) {
+      if (window._pendingPlan === 'calgary' || window._pendingPlan === 'edmonton') {
+        buildLoop('calgary');
+        return "Route locked. Starting with the farthest Calgary stop and working your way back.";
+      }
+    }
 
-  // ADVANCED ROUTE PLANNER (Severity-First, Location-Agnostic)
-  if (t.match(/route|list|plan|stops/)) {
+    // Otherwise, analyze the fires
     let remaining = allData.filter(r =>
       !visited.has(getSiteId(r)) && !skipped.has(getSiteId(r)) && (getProvince(r) || '').toUpperCase() === 'AB'
     );
-    if (!remaining.length) return 'All stops are complete. Great work.';
+    if (!remaining.length) return 'All stops are complete.';
     
-    // Rank by absolute severity (ignoring distance entirely)
+    // Rank by pure severity (ignore distance)
     remaining.map(r => {
       const severity = getReject(r) * (getVol(r) + 1);
       const offlineBoost = (firstVal(r, ['Kiosk State']) || '') === 'Offline' ? 1.5 : 1.0;
@@ -767,76 +804,28 @@ function parseCommand(text) {
     });
     remaining.sort((a, b) => b._score - a._score);
 
-    const edmonton = [], calgary = [], other = [];
-    remaining.forEach(r => {
-      const city = getCity(r).toLowerCase();
-      if (city.includes('edmonton')) edmonton.push(r);
-      else if (city.includes('calgary')) calgary.push(r);
-      else other.push(r);
-    });
+    const edmonton = remaining.filter(r => getCity(r).toLowerCase().includes('edmonton'));
+    const calgary = remaining.filter(r => getCity(r).toLowerCase().includes('calgary'));
 
-    let plan = '';
-    const edTop = edmonton.slice(0, 4);
-    const calTop = calgary.slice(0, 4);
-
-    // Check which city has the absolute worst kiosk
-    const worstEd = edTop.length ? edTop[0]._score : 0;
-    const worstCal = calTop.length ? calTop[0]._score : 0;
+    const worstEd = edmonton.length ? edmonton[0]._score : 0;
+    const worstCal = calgary.length ? calgary[0]._score : 0;
 
     if (worstCal > worstEd * 1.2) {
-      // Calgary has a significantly worse kiosk. Send him there.
-      plan = `Warning: The worst kiosks are in Calgary. Calgary plan: ${calTop.map(r => `${getName(r)} at ${getAddress(r)}`).join(', then ')}.`;
+      window._pendingPlan = 'calgary';
+      return `It's a Calgary day. The worst kiosks are in Calgary. Do you want the Calgary loop?`;
     } else if (worstEd > worstCal * 1.2) {
-      // Edmonton has the worst fire.
-      plan = `Edmonton plan. ${edTop.map(r => `${getName(r)} at ${getAddress(r)}`).join(', then ')}.`;
+      window._pendingPlan = 'edmonton';
+      return `It's an Edmonton day. The worst kiosks are in Edmonton. Do you want the Edmonton loop?`;
     } else {
-      // Mixed day
-      if (edTop.length && calTop.length) {
-        const mixed = [...edTop.slice(0, 2), ...calTop.slice(0, 2)];
-        plan = `Split plan. ` + mixed.map(r => `${getName(r)} at ${getAddress(r)}`).join(', then ') + `.`;
-      } else if (edTop.length) {
-        plan = `Edmonton plan. ${edTop.map(r => `${getName(r)} at ${getAddress(r)}`).join(', then ')}.`;
-      } else {
-        plan = `Calgary plan. ${calTop.map(r => `${getName(r)} at ${getAddress(r)}`).join(', then ')}.`;
-      }
+      window._pendingPlan = 'split';
+      return `It's a split day. Do you want the Edmonton loop or the Calgary loop?`;
     }
-
-    return plan;
   }
 
-  if (t.match(/edmonton|calgary|kind of day|city|focus/)) {
-    let remaining = allData.filter(r => 
-      !visited.has(getSiteId(r)) && 
-      !skipped.has(getSiteId(r)) && 
-      (getProvince(r) || '').toUpperCase() === 'AB' &&
-      isCommitmentKiosk(r)
-    );
-    
-    if (!remaining.length) return 'You have completed all your commitment kiosks. Great work.';
-
-    remaining.sort((a, b) => {
-      const sevA = getReject(a) * (getVol(a) + 1);
-      const sevB = getReject(b) * (getVol(b) + 1);
-      return sevB - sevA;
-    });
-
-    const topWorst = remaining.slice(0, 3);
-    const cityCounts = {};
-    topWorst.forEach(r => {
-      const c = getCity(r).trim() || 'Unknown';
-      cityCounts[c] = (cityCounts[c] || 0) + 1;
-    });
-
-    let topCity = '', topCount = 0;
-    for (const [city, count] of Object.entries(cityCounts)) {
-      if (count > topCount) { topCity = city; topCount = count; }
-    }
-
-    if (topCount >= 2) {
-      return `It's a ${topCity} day. The most critical commitment kiosks are in ${topCity}.`;
-    } else {
-      return `It's a split day. Your worst commitment kiosks are spread between ${Object.keys(cityCounts).join(' and ')}.`;
-    }
+  if (t.match(/next|what'?s next|where to|take me/)) {
+    const r = getNextStop();
+    if (!r) return 'All stops complete. Great work.';
+    return spokenNextStop(r);
   }
 
   if (t.match(/worst|fire|critical|problem/)) {
@@ -845,7 +834,7 @@ function parseCommand(text) {
     remaining.sort((a, b) => getReject(b) - getReject(a));
     const worst = remaining[0];
     const dist = distanceTo(worst);
-    return `The worst kiosk right now is ${getName(worst)} in ${getCity(worst)} at ${getAddress(worst)}. Reject rate is ${getReject(worst).toFixed(1)} percent.${dist !== null ? ` It is ${dist.toFixed(1)} kilometres away.` : ''}`;
+    return `The worst kiosk right now is ${getName(worst)} in ${getCity(worst)}. Reject rate is ${getReject(worst).toFixed(1)} percent.${dist !== null ? ` It is ${dist.toFixed(1)} kilometres away.` : ''}`;
   }
 
   if (t.match(/how many|time|left/)) {
@@ -902,13 +891,58 @@ function parseCommand(text) {
   if (t.match(/reset|start over/)) {
     visited.clear();
     skipped.clear();
+    activeLoop = null;
+    loopStops = [];
     try { localStorage.removeItem('angela_visited'); } catch (e) {}
     updateProgress();
     renderNextStop();
     return 'Route reset. All stops unmarked.';
   }
 
-  return "I didn't catch that. Try asking for your next stop, or a status report.";
+  return "I didn't catch that. Try asking to plan your route.";
+}
+
+// ============ THE NEW LOOP BUILDER ============
+function buildLoop(cityName) {
+  const targetCity = cityName.toLowerCase();
+  let cityKiosks = allData.filter(r => 
+    !visited.has(getSiteId(r)) && 
+    !skipped.has(getSiteId(r)) && 
+    getCity(r).toLowerCase().includes(targetCity) &&
+    (getProvince(r) || '').toUpperCase() === 'AB'
+  );
+
+  if (!cityKiosks.length) {
+    speak(`No remaining stops in ${cityName}.`);
+    return;
+  }
+
+  // Sort by severity to find the top 4 absolute priorities
+  cityKiosks.map(r => {
+    const severity = getReject(r) * (getVol(r) + 1);
+    const offlineBoost = (firstVal(r, ['Kiosk State']) || '') === 'Offline' ? 1.5 : 1.0;
+    let commitBoost = isCommitmentKiosk(r) ? (isBelowCommitment(r) ? 2.5 : 1.5) : 1.0;
+    r._score = severity * offlineBoost * commitBoost;
+    return r;
+  });
+  cityKiosks.sort((a, b) => b._score - a._score);
+  const top4 = cityKiosks.slice(0, 4);
+
+  // Now sort those 4 by distance to Edmonton (Farthest first)
+  // Safeway 8805 in Banff is the proxy for "Far South"
+  const EDMONTON_LAT = 53.5461, EDMONTON_LON = -113.4938;
+  
+  top4.sort((a, b) => {
+    const distA = distanceKm(EDMONTON_LAT, EDMONTON_LON, getLat(a), getLon(a));
+    const distB = distanceKm(EDMONTON_LAT, EDMONTON_LON, getLat(b), getLon(b));
+    return distB - distA; // Farthest first
+  });
+
+  loopStops = top4.map(r => getSiteId(r));
+  activeLoop = targetCity;
+  window._pendingPlan = null;
+  
+  renderNextStop();
 }
 
 // ============ SPEECH RECOGNITION ============
@@ -995,6 +1029,8 @@ $('resetRouteBtn').addEventListener('click', () => {
   if (!confirm('Clear all visited stops? This cannot be undone.')) return;
   visited.clear();
   skipped.clear();
+  activeLoop = null;
+  loopStops = [];
   try { localStorage.removeItem('angela_visited'); } catch (e) {}
   updateProgress();
   renderNextStop();
@@ -1017,7 +1053,7 @@ if (navigator.geolocation) {
       updateGpsChip('on', `GPS: ±${Math.round(pos.coords.accuracy)}m`);
       if (first && allData.length) {
         renderNextStop();
-        toast('GPS locked — route sorted');
+        toast('GPS locked');
       }
     },
     err => {
