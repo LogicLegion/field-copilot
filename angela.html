@@ -291,6 +291,7 @@ let isSpeaking = false; // HARD MUTE SWITCH
 // The NEW Loop Route State
 let activeLoop = null; // 'edmonton', 'calgary', or null
 let loopStops = [];    // Array of siteIds in the specific order for the day
+let pendingPlan = null; // Stores what she is waiting for a yes/no on
 
 const COMMITMENT_TARGET = 98;
 let commitmentKioskIds = new Set();
@@ -341,7 +342,8 @@ function speak(text) {
       $('micBtn').classList.remove('thinking');
       $('status').textContent = 'Tap the mic to talk.';
       
-      if (handsFreeMode) {
+      // Only auto-restart if we are in handsfree AND we aren't waiting on a plan choice
+      if (handsFreeMode && !pendingPlan) {
         setTimeout(() => {
           startVoiceRecognition(true);
         }, 800); 
@@ -422,7 +424,7 @@ $('csvFile').addEventListener('change', e => {
       
       activeLoop = null;
       loopStops = [];
-      window._pendingPlan = null;
+      pendingPlan = null;
 
       $('csvStatus').textContent = `✅ ${allData.length} assets loaded`;
       $('status').textContent = 'Ready. Tap the mic and talk.';
@@ -780,13 +782,13 @@ function parseCommand(text) {
     
     // Check if the user is confirming a plan
     if (t.includes('edmonton') || t === 'yes' || t === 'yeah') {
-      if (window._pendingPlan === 'edmonton' || window._pendingPlan === 'split') {
+      if (pendingPlan === 'edmonton' || pendingPlan === 'split') {
         buildLoop('edmonton');
         return "Route locked. Starting with the farthest Edmonton stop and heading back towards the city.";
       }
     }
     if (t.includes('calgary')) {
-      if (window._pendingPlan === 'calgary' || window._pendingPlan === 'split' || window._pendingPlan === 'edmonton') {
+      if (pendingPlan === 'calgary' || pendingPlan === 'split' || pendingPlan === 'edmonton') {
         buildLoop('calgary');
         return "Route locked. Starting with the farthest Calgary stop and working your way back.";
       }
@@ -815,13 +817,13 @@ function parseCommand(text) {
     const worstCal = calgary.length ? calgary[0]._score : 0;
 
     if (worstCal > worstEd * 1.2) {
-      window._pendingPlan = 'calgary';
+      pendingPlan = 'calgary';
       return `It's a Calgary day. The worst kiosks are in Calgary. Do you want the Calgary loop?`;
     } else if (worstEd > worstCal * 1.2) {
-      window._pendingPlan = 'edmonton';
+      pendingPlan = 'edmonton';
       return `It's an Edmonton day. The worst kiosks are in Edmonton. Do you want the Edmonton loop?`;
     } else {
-      window._pendingPlan = 'split';
+      pendingPlan = 'split';
       return `It's a split day. Do you want the Edmonton loop or the Calgary loop?`;
     }
   }
@@ -897,6 +899,7 @@ function parseCommand(text) {
     skipped.clear();
     activeLoop = null;
     loopStops = [];
+    pendingPlan = null;
     try { localStorage.removeItem('angela_visited'); } catch (e) {}
     updateProgress();
     renderNextStop();
@@ -918,6 +921,7 @@ function buildLoop(cityName) {
 
   if (!cityKiosks.length) {
     speak(`No remaining stops in ${cityName}.`);
+    pendingPlan = null;
     return;
   }
 
@@ -943,7 +947,7 @@ function buildLoop(cityName) {
 
   loopStops = top4.map(r => getSiteId(r));
   activeLoop = targetCity;
-  window._pendingPlan = null;
+  pendingPlan = null;
   
   renderNextStop();
 }
@@ -980,7 +984,7 @@ function startVoiceRecognition(isAutoRestart = false) {
         
         const reply = parseCommand(text);
         if (reply) speak(reply);
-        else if (handsFreeMode) startVoiceRecognition(true);
+        else if (handsFreeMode && !pendingPlan) startVoiceRecognition(true);
       };
 
       recognition.onerror = e => {
@@ -1005,10 +1009,6 @@ function startVoiceRecognition(isAutoRestart = false) {
       $('micBtn').classList.remove('thinking');
       $('micBtn').classList.add('listening');
       $('status').textContent = '🎙️ Listening…';
-      
-      const u = new SpeechSynthesisUtterance("I'm listening.");
-      u.rate = 1.2; u.pitch = 1.1; u.volume = 0.3;
-      window.speechSynthesis.speak(u);
 
     } catch (e) {
       toast('Could not start listening');
@@ -1035,6 +1035,7 @@ $('resetRouteBtn').addEventListener('click', () => {
   skipped.clear();
   activeLoop = null;
   loopStops = [];
+  pendingPlan = null;
   try { localStorage.removeItem('angela_visited'); } catch (e) {}
   updateProgress();
   renderNextStop();
