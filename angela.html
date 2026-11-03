@@ -6,195 +6,141 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#f8fafc">
 <meta name="color-scheme" content="light">
-<title>Angela — Field Copilot</title>
+<title>Angela — Field Copilot v2.1</title>
 <style>
-  /* LIGHT MODE BACKGROUND */
   html, body {
-    background-color: #f8fafc !important;
-    color: #0f172a !important;
-    min-height: 100vh;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    margin: 0; padding: 0;
-    -webkit-tap-highlight-color: transparent;
+    background-color: #f8fafc !important; color: #0f172a !important;
+    min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    margin: 0; padding: 0; -webkit-tap-highlight-color: transparent;
   }
-
-  body {
-    display: flex; flex-direction: column; align-items: center;
-    padding: 16px; padding-bottom: 40px;
-    box-sizing: border-box;
-  }
-  
+  body { display: flex; flex-direction: column; align-items: center; padding: 16px 16px 40px; box-sizing: border-box; }
   * { box-sizing: border-box; }
-
   h1 { font-size: 1.4rem; margin-bottom: 4px; letter-spacing: -0.5px; color: #0f172a; }
   .status { color: #64748b; font-size: 0.85rem; margin-bottom: 12px; text-align: center; min-height: 18px; font-weight: 500; }
 
-  /* Toggle */
   .toggle-container {
     display: flex; align-items: center; justify-content: space-between;
-    background: #ffffff; border: 1px solid #e2e8f0; padding: 12px 16px; 
+    background: #fff; border: 1px solid #e2e8f0; padding: 12px 16px;
     border-radius: 16px; margin-bottom: 12px; cursor: pointer; width: 100%; max-width: 420px;
-    transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    transition: all .2s; box-shadow: 0 2px 4px rgba(0,0,0,.02);
   }
   .toggle-container:hover { border-color: #94a3b8; }
-  .toggle-switch {
-    width: 44px; height: 24px; background: #cbd5e1; border-radius: 20px;
-    position: relative; transition: 0.3s;
-  }
+  .toggle-switch { width: 44px; height: 24px; background: #cbd5e1; border-radius: 20px; position: relative; transition: .3s; }
   .toggle-switch::after {
-    content: ''; position: absolute; top: 2px; left: 2px;
-    width: 20px; height: 20px; background: white; border-radius: 50%;
-    transition: 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px;
+    background: #fff; border-radius: 50%; transition: .3s; box-shadow: 0 2px 4px rgba(0,0,0,.2);
   }
   .toggle-container.active .toggle-switch { background: #10b981; }
   .toggle-container.active .toggle-switch::after { transform: translateX(20px); }
-  .toggle-label { font-size: 0.85rem; font-weight: 600; color: #64748b; }
+  .toggle-label { font-size: .85rem; font-weight: 600; color: #64748b; }
   .toggle-container.active .toggle-label { color: #059669; }
 
-  /* Chips */
   .chips-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 16px; width: 100%; max-width: 420px; }
   .chip {
-    background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px;
-    padding: 6px 14px; font-size: 0.75rem; color: #64748b;
-    display: inline-flex; align-items: center; gap: 6px; font-weight: 600;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 6px 14px;
+    font-size: .75rem; color: #64748b; display: inline-flex; align-items: center; gap: 6px;
+    font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.05);
   }
-  .chip.on  { color: #059669; border-color: #10b981; background: #ecfdf5; }
+  .chip.on { color: #059669; border-color: #10b981; background: #ecfdf5; }
   .chip.off { color: #64748b; }
-  .chip.active-commit { background: #fef2f2; color: #dc2626; border-color: #fca5a5; font-weight: 700; cursor: pointer;}
+  .chip.active-commit { background: #fef2f2; color: #dc2626; border-color: #fca5a5; font-weight: 700; cursor: pointer; }
   .chip.clickable { cursor: pointer; transition: all .2s; }
   .chip.clickable:hover { background: #f1f5f9; }
   .chip .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; display: inline-block; }
 
   .progress {
-    background: #ffffff; border-radius: 12px; padding: 12px 16px;
-    font-size: 0.9rem; width: 100%; max-width: 420px;
-    display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 16px; border: 1px solid #e2e8f0;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    background: #fff; border-radius: 12px; padding: 12px 16px; font-size: .9rem;
+    width: 100%; max-width: 420px; display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 16px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,.05);
   }
   .progress .count { color: #2563eb; font-weight: 700; font-size: 1rem; }
 
   .load-box {
-    background: #ffffff; border: 2px dashed #cbd5e1; border-radius: 16px;
-    padding: 20px; text-align: center; margin-bottom: 16px;
-    width: 100%; max-width: 420px; cursor: pointer; transition: all 0.2s;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    background: #fff; border: 2px dashed #cbd5e1; border-radius: 16px; padding: 20px;
+    text-align: center; margin-bottom: 16px; width: 100%; max-width: 420px; cursor: pointer;
+    transition: all .2s; box-shadow: 0 1px 3px rgba(0,0,0,.05);
   }
   .load-box:hover { border-color: #3b82f6; background: #f8fafc; }
   .load-box input { display: none; }
-  .load-box small { color: #64748b; display: block; margin-top: 6px; font-size: 0.8rem; }
+  .load-box small { color: #64748b; display: block; margin-top: 6px; font-size: .8rem; }
 
-  /* Mic Button */
   .mic {
-    width: 120px; height: 120px; border-radius: 50%;
-    background: #ef4444; border: none; color: white;
-    font-size: 48px; cursor: pointer;
-    box-shadow: 0 10px 30px rgba(239,68,68,.3);
-    transition: all .2s; margin: 8px 0 24px;
-    display: flex; align-items: center; justify-content: center;
+    width: 120px; height: 120px; border-radius: 50%; background: #ef4444; border: none;
+    color: #fff; font-size: 48px; cursor: pointer; box-shadow: 0 10px 30px rgba(239,68,68,.3);
+    transition: all .2s; margin: 8px 0 24px; display: flex; align-items: center; justify-content: center;
   }
   .mic:active { transform: scale(.95); }
   .mic.listening { background: #10b981; box-shadow: 0 10px 30px rgba(16,185,129,.4); animation: pulse 1.5s infinite; }
   .mic.thinking { background: #f59e0b; box-shadow: 0 10px 30px rgba(245,158,11,.4); animation: pulse 1.5s infinite; }
   .mic:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
   @keyframes pulse {
-    0%   { box-shadow: 0 0 0 0 rgba(16,185,129,.6); }
-    70%  { box-shadow: 0 0 0 30px rgba(16,185,129,0); }
+    0% { box-shadow: 0 0 0 0 rgba(16,185,129,.6); }
+    70% { box-shadow: 0 0 0 30px rgba(16,185,129,0); }
     100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
   }
 
-  /* Next Stop Card */
   .next-card {
-    background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px;
-    padding: 20px; width: 100%; max-width: 420px;
-    margin-bottom: 16px; display: none; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 20px;
+    width: 100%; max-width: 420px; margin-bottom: 16px; display: none;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,.05), 0 2px 4px -1px rgba(0,0,0,.03);
   }
   .next-card.show { display: block; }
-  .next-card .label {
-    font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;
-    color: #64748b; margin-bottom: 12px; font-weight: 700;
-  }
-  .next-card .name {
-    font-size: 1.4rem; font-weight: 800; color: #0f172a;
-    margin-bottom: 6px; line-height: 1.2; letter-spacing: -0.5px;
-  }
-  .next-card .address { font-size: 0.9rem; color: #475569; margin-bottom: 14px; line-height: 1.4; }
+  .next-card .label { font-size: .75rem; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 12px; font-weight: 700; }
+  .next-card .name { font-size: 1.4rem; font-weight: 800; color: #0f172a; margin-bottom: 6px; line-height: 1.2; letter-spacing: -.5px; }
+  .next-card .address { font-size: .9rem; color: #475569; margin-bottom: 14px; line-height: 1.4; }
   .next-card .distance {
-    font-size: 0.85rem; color: #2563eb; margin-bottom: 14px; font-weight: 700;
+    font-size: .85rem; color: #2563eb; margin-bottom: 14px; font-weight: 700;
     display: inline-flex; align-items: center; gap: 6px; background: #eff6ff; padding: 4px 10px; border-radius: 8px;
   }
-  .next-card .commitment-line {
-    font-size: 0.85rem; margin-bottom: 14px; font-weight: 600;
-    padding: 8px 12px; border-radius: 10px; display: none;
+  .next-card .reason {
+    font-size: .78rem; color: #64748b; margin-bottom: 14px; font-family: ui-monospace, Menlo, monospace;
+    background: #f8fafc; padding: 6px 10px; border-radius: 8px; border: 1px solid #e2e8f0;
   }
+  .next-card .commitment-line { font-size: .85rem; margin-bottom: 14px; font-weight: 600; padding: 8px 12px; border-radius: 10px; display: none; }
   .next-card .commitment-line.below { background: #fef2f2; color: #dc2626; border-left: 4px solid #ef4444; }
   .next-card .commitment-line.ok { background: #ecfdf5; color: #059669; border-left: 4px solid #10b981; }
-  
+
   .next-card .metrics { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-  .metric {
-    background: #f8fafc; border-radius: 10px; padding: 8px 12px;
-    font-size: 0.8rem; color: #64748b; flex: 1; text-align: center; border: 1px solid #e2e8f0;
-  }
+  .metric { background: #f8fafc; border-radius: 10px; padding: 8px 12px; font-size: .8rem; color: #64748b; flex: 1; text-align: center; border: 1px solid #e2e8f0; }
   .metric strong { display: block; color: #0f172a; font-size: 1.1rem; margin-top: 2px; }
 
-  .status-badge {
-    display: inline-block; padding: 4px 12px; border-radius: 20px;
-    font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
-    margin-bottom: 12px;
-  }
+  .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: .75rem; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px; }
   .status-badge.Critical { background: #fee2e2; color: #dc2626; }
-  .status-badge.Warning  { background: #fef3c7; color: #d97706; }
-  .status-badge.Good     { background: #d1fae5; color: #059669; }
-  .status-badge.Offline  { background: #e2e8f0; color: #475569; }
+  .status-badge.Stale { background: #ffedd5; color: #c2410c; }
+  .status-badge.Warning { background: #fef3c7; color: #d97706; }
+  .status-badge.Good { background: #d1fae5; color: #059669; }
+  .status-badge.Offline { background: #e2e8f0; color: #475569; }
 
   .actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 6px; }
-  .actions button {
-    padding: 16px 8px; border-radius: 14px; border: none;
-    font-size: 0.95rem; font-weight: 700; cursor: pointer;
-    transition: all .15s; color: white;
-  }
+  .actions button { padding: 16px 8px; border-radius: 14px; border: none; font-size: .95rem; font-weight: 700; cursor: pointer; transition: all .15s; color: #fff; }
   .actions button:active { transform: scale(.96); }
-  .btn-call { background: #3b82f6; }
-  .btn-call:hover { background: #2563eb; }
-  .btn-done { background: #10b981; }
-  .btn-done:hover { background: #059669; }
-  .btn-skip { background: #e2e8f0; color: #475569; }
-  .btn-skip:hover { background: #cbd5e1; }
+  .btn-call { background: #3b82f6; } .btn-call:hover { background: #2563eb; }
+  .btn-done { background: #10b981; } .btn-done:hover { background: #059669; }
+  .btn-skip { background: #e2e8f0; color: #475569; } .btn-skip:hover { background: #cbd5e1; }
 
-  /* Chat Panels */
-  .panel {
-    background: #ffffff; border-radius: 16px; padding: 16px;
-    margin-top: 12px; width: 100%; max-width: 420px;
-    font-size: 0.9rem; border: 1px solid #e2e8f0;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  .btn-here {
+    width: 100%; max-width: 420px; margin-bottom: 16px; padding: 14px; border-radius: 14px;
+    border: none; font-size: .95rem; font-weight: 700; cursor: pointer;
+    background: #6366f1; color: #fff; transition: all .15s; display: none;
   }
-  .panel .label { color: #64748b; font-size: 0.7rem; text-transform: uppercase; margin-bottom: 6px; font-weight: 700; letter-spacing: 0.5px; }
+  .btn-here.show { display: block; }
+  .btn-here:active { transform: scale(.98); }
+  .btn-here.active { background: #f59e0b; }
+
+  .panel { background: #fff; border-radius: 16px; padding: 16px; margin-top: 12px; width: 100%; max-width: 420px; font-size: .9rem; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+  .panel .label { color: #64748b; font-size: .7rem; text-transform: uppercase; margin-bottom: 6px; font-weight: 700; letter-spacing: .5px; }
   .panel .value { color: #0f172a; line-height: 1.5; font-weight: 500; }
 
-  .commands {
-    margin-top: 24px; width: 100%; max-width: 420px;
-    background: #ffffff; border-radius: 16px; padding: 16px; font-size: 0.85rem; border: 1px solid #e2e8f0;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-  }
-  .commands h3 { color: #2563eb; margin-bottom: 10px; font-size: 0.9rem; font-weight: 700; }
+  .commands { margin-top: 24px; width: 100%; max-width: 420px; background: #fff; border-radius: 16px; padding: 16px; font-size: .85rem; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+  .commands h3 { color: #2563eb; margin-bottom: 10px; font-size: .9rem; font-weight: 700; }
   .commands li { color: #475569; margin: 6px 0; list-style: none; display: flex; align-items: center; gap: 8px; }
-  .commands li::before { content: "🎤"; font-size: 0.8rem; opacity: 0.7; }
+  .commands li::before { content: "🎤"; font-size: .8rem; opacity: .7; }
 
-  .reset-btn {
-    margin-top: 20px; background: transparent; color: #64748b;
-    border: 1px solid #e2e8f0; padding: 10px 24px; border-radius: 20px;
-    font-size: 0.85rem; cursor: pointer; transition: all 0.2s;
-  }
+  .reset-btn { margin-top: 20px; background: transparent; color: #64748b; border: 1px solid #e2e8f0; padding: 10px 24px; border-radius: 20px; font-size: .85rem; cursor: pointer; transition: all .2s; }
   .reset-btn:hover { background: #f1f5f9; color: #0f172a; }
   .reset-btn:active { background: #e2e8f0; }
 
-  .toast {
-    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-    background: #0f172a; color: white; padding: 12px 24px; border-radius: 30px;
-    font-size: 0.9rem; font-weight: 600; opacity: 0; transition: opacity .3s;
-    pointer-events: none; z-index: 999; box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-  }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #0f172a; color: #fff; padding: 12px 24px; border-radius: 30px; font-size: .9rem; font-weight: 600; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 999; box-shadow: 0 8px 24px rgba(0,0,0,.2); }
   .toast.show { opacity: 1; }
 </style>
 </head>
@@ -230,6 +176,7 @@
   <div class="name" id="ncName">—</div>
   <div class="address" id="ncAddress">—</div>
   <div class="distance" id="ncDistance"></div>
+  <div class="reason" id="ncReason"></div>
   <div class="commitment-line" id="ncCommitment"></div>
   <div class="metrics">
     <div class="metric">Reject<strong id="ncReject">—</strong></div>
@@ -243,36 +190,31 @@
   </div>
 </div>
 
+<button class="btn-here" id="btnHere">📍 I'm here — start timer</button>
+
 <button class="mic" id="micBtn" disabled>🎤</button>
 
-<div class="panel">
-  <div class="label">You said</div>
-  <div class="value" id="heard">—</div>
-</div>
-
-<div class="panel">
-  <div class="label">Angela</div>
-  <div class="value" id="reply">Tap the mic, wait for the beep, then talk normally.</div>
-</div>
+<div class="panel"><div class="label">You said</div><div class="value" id="heard">—</div></div>
+<div class="panel"><div class="label">Angela</div><div class="value" id="reply">Tap the mic, wait for the beep, then talk normally.</div></div>
 
 <div class="commands">
   <h3>Voice Commands</h3>
   <ul>
     <li>"Plan my route"</li>
-    <li>"Edmonton" or "Calgary" (to pick)</li>
+    <li>"Edmonton" / "Calgary" / "Lethbridge" / "Red Deer" (pick city)</li>
     <li>"What's my next stop?"</li>
     <li>"Give me a status report"</li>
     <li>"Where is the worst kiosk?"</li>
     <li>"How many stops are left?"</li>
     <li>"What's nearby?"</li>
     <li>"I'm done here" / "Skip this one"</li>
+    <li>"I'm here" (start timer)</li>
     <li>"Turn on commitment mode"</li>
     <li>"Call the store"</li>
   </ul>
 </div>
 
 <button class="reset-btn" id="resetRouteBtn">🔄 Reset Route Progress</button>
-
 <div class="toast" id="toast"></div>
 
 <script>
@@ -285,13 +227,17 @@ let isListening = false;
 let recognition = null;
 let currentStopId = null;
 let commitmentModeOnly = false;
-let handsFreeMode = false; 
-let isSpeaking = false; // HARD MUTE SWITCH
+let handsFreeMode = false;
+let isSpeaking = false;
+let speakWatchdog = null;
+let lastSpokenText = '';
 
-// The NEW Loop Route State
-let activeLoop = null; // 'edmonton', 'calgary', or null
-let loopStops = [];    // Array of siteIds in the specific order for the day
-let pendingPlan = null; // Stores what she is waiting for a yes/no on
+let activeLoop = null;
+let loopStops = [];
+let pendingPlan = null;        // 'edmonton' | 'calgary' | ... | 'split'
+
+let stopTimerStart = null;
+let stopTimerInterval = null;
 
 const COMMITMENT_TARGET = 98;
 let commitmentKioskIds = new Set();
@@ -299,9 +245,11 @@ let commitmentKioskIds = new Set();
 const $ = id => document.getElementById(id);
 
 try {
-  const saved = JSON.parse(localStorage.getItem('angela_visited') || '[]');
-  if (Array.isArray(saved)) visited = new Set(saved);
-} catch (e) { visited = new Set(); }
+  const savedV = JSON.parse(localStorage.getItem('angela_visited') || '[]');
+  if (Array.isArray(savedV)) visited = new Set(savedV);
+  const savedS = JSON.parse(localStorage.getItem('angela_skipped') || '[]');
+  if (Array.isArray(savedS)) skipped = new Set(savedS);
+} catch (e) { /* ignore */ }
 
 $('handsFreeToggle').addEventListener('click', () => {
   handsFreeMode = !handsFreeMode;
@@ -325,82 +273,87 @@ function toast(msg) {
   window._toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
 }
 
+// Adaptive watchdog: length of text * 120ms + 3s buffer, minimum 4s.
+function watchdogMs(text) {
+  const base = (text.length || 0) * 120 + 3000;
+  return Math.max(4000, Math.min(base, 30000));
+}
+
 function speak(text) {
   $('reply').textContent = text;
+  lastSpokenText = text;
   try {
     window.speechSynthesis.cancel();
-    isSpeaking = true; // LOCK THE MIC
+    isSpeaking = true;
     $('micBtn').classList.remove('listening');
     $('micBtn').classList.add('thinking');
-    
+
+    clearTimeout(speakWatchdog);
+    speakWatchdog = setTimeout(() => {
+      if (isSpeaking) {
+        isSpeaking = false;
+        $('micBtn').classList.remove('thinking');
+        $('status').textContent = 'Tap the mic to talk.';
+        if (handsFreeMode && !pendingPlan) startVoiceRecognition(true);
+      }
+    }, watchdogMs(text));
+
     const u = new SpeechSynthesisUtterance(text);
     u.rate = 1.05;
     u.lang = 'en-CA';
-    
+
     u.onend = () => {
-      isSpeaking = false; // UNLOCK THE MIC
+      clearTimeout(speakWatchdog);
+      isSpeaking = false;
       $('micBtn').classList.remove('thinking');
       $('status').textContent = 'Tap the mic to talk.';
-      
-      // Only auto-restart if we are in handsfree AND we aren't waiting on a plan choice
       if (handsFreeMode && !pendingPlan) {
-        setTimeout(() => {
-          startVoiceRecognition(true);
-        }, 800); 
+        setTimeout(() => startVoiceRecognition(true), 800);
       }
     };
-    
+    u.onerror = () => {
+      clearTimeout(speakWatchdog);
+      isSpeaking = false;
+      $('micBtn').classList.remove('thinking');
+      $('status').textContent = 'Tap the mic to talk.';
+    };
+
     window.speechSynthesis.speak(u);
-  } catch (e) { 
+  } catch (e) {
     isSpeaking = false;
-    console.warn('Speech failed:', e); 
+    $('micBtn').classList.remove('thinking');
+    console.warn('Speech failed:', e);
   }
 }
 
 // ============ CSV PARSER ============
 function parseCSVLine(line) {
-  const out = [];
-  let cur = '';
-  let inQuotes = false;
+  const out = []; let cur = ''; let inQuotes = false;
   for (let i = 0; i < line.length; i++) {
     const ch = line[i];
     if (ch === '"') {
       if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
       else inQuotes = !inQuotes;
     } else if (ch === ',' && !inQuotes) {
-      out.push(cur);
-      cur = '';
-    } else {
-      cur += ch;
-    }
+      out.push(cur); cur = '';
+    } else { cur += ch; }
   }
   out.push(cur);
   return out;
 }
-
-function cleanHeader(h) {
-  return String(h || '').replace(/^\uFEFF/, '').replace(/"/g, '').trim();
-}
-
-function cleanCell(c) {
-  if (c === null || c === undefined) return '';
-  return String(c).replace(/^"|"$/g, '').trim();
-}
+function cleanHeader(h) { return String(h || '').replace(/^\uFEFF/, '').replace(/"/g, '').trim(); }
+function cleanCell(c) { if (c === null || c === undefined) return ''; return String(c).replace(/^"|"$/g, '').trim(); }
 
 $('csvFile').addEventListener('change', e => {
   const file = e.target.files[0];
   if (!file) return;
-  if (!file.name.toLowerCase().endsWith('.csv')) {
-    toast('Please upload a .csv file');
-    return;
-  }
+  if (!file.name.toLowerCase().endsWith('.csv')) { toast('Please upload a .csv file'); return; }
   const reader = new FileReader();
   reader.onload = ev => {
     try {
       const raw = String(ev.target.result || '').replace(/^\uFEFF/, '');
       const lines = raw.split(/\r?\n/).filter(l => l.trim());
       if (lines.length < 2) { toast('Empty or invalid CSV'); return; }
-
       const headers = parseCSVLine(lines[0]).map(cleanHeader);
       if (!headers.length) { toast('No headers found'); return; }
 
@@ -414,17 +367,10 @@ $('csvFile').addEventListener('change', e => {
         }
         if (row.Store || row['Site Name']) allData.push(row);
       }
-
-      if (!allData.length) {
-        toast('No store rows found in CSV');
-        return;
-      }
+      if (!allData.length) { toast('No store rows found in CSV'); return; }
 
       computeCommitmentKiosks();
-      
-      activeLoop = null;
-      loopStops = [];
-      pendingPlan = null;
+      activeLoop = null; loopStops = []; pendingPlan = null;
 
       $('csvStatus').textContent = `✅ ${allData.length} assets loaded`;
       $('status').textContent = 'Ready. Tap the mic and talk.';
@@ -439,11 +385,9 @@ $('csvFile').addEventListener('change', e => {
       const msg = cc
         ? `Loaded ${allData.length} assets. ${cc} commitment kiosks tracked. Ready.`
         : `Loaded ${allData.length} assets. Ready.`;
-      
       const u = new SpeechSynthesisUtterance(msg);
       u.rate = 1.05; u.lang = 'en-CA';
       window.speechSynthesis.speak(u);
-
     } catch (err) {
       console.error(err);
       toast('Failed to parse CSV');
@@ -456,19 +400,18 @@ $('csvFile').addEventListener('change', e => {
 // ============ FIELD ACCESSORS ============
 function firstVal(r, keys) {
   for (const k of keys) {
-    if (r[k] !== undefined && r[k] !== null && String(r[k]).trim() !== '') {
-      return r[k];
-    }
+    if (r[k] !== undefined && r[k] !== null && String(r[k]).trim() !== '') return r[k];
   }
   return '';
 }
-
-function getName(r)     { return firstVal(r, ['Store', 'Site Name', 'Store Name']) || 'Unknown'; }
-function getAddress(r)  { return firstVal(r, ['Address', 'Addr']); }
-function getCity(r)     { return firstVal(r, ['City']); }
+function getName(r) { return firstVal(r, ['Store', 'Site Name', 'Store Name']) || 'Unknown'; }
+function getAddress(r) { return firstVal(r, ['Address', 'Addr']); }
+function getCity(r) { return firstVal(r, ['City']); }
 function getProvince(r) { return firstVal(r, ['State', 'Province']); }
-function getZip(r)      { return firstVal(r, ['Zip', 'Postal Code']); }
-function getPhone(r)    { return firstVal(r, ['Store Phone Number', 'Phone Number', 'Phone']); }
+function getZip(r) { return firstVal(r, ['Zip', 'Postal Code']); }
+function getPhone(r) { return firstVal(r, ['Store Phone Number', 'Phone Number', 'Phone']); }
+function getReasonCode(r) { return firstVal(r, ['Reason Code']); }
+function getKioskState(r) { return firstVal(r, ['Kiosk State', 'Asset State', 'State']); }
 
 function parseNum(v, fallback) {
   if (v === '' || v === null || v === undefined) return fallback;
@@ -476,79 +419,64 @@ function parseNum(v, fallback) {
   return isNaN(n) ? fallback : n;
 }
 
-function getReject(r) {
-  return parseNum(firstVal(r, ['7 Day Reject %', '7 Day Failure %', 'Reject7Day', '1 Day Reject %']), 0);
-}
-function getUptime(r) {
-  return parseNum(firstVal(r, ['7 Day Uptime %', 'Uptime7Day', 'Uptime', 'Uptime %']), 100);
-}
-function getVol(r) {
-  return parseNum(firstVal(r, ['1 Day TX', '1 Day Activity', 'Volume']), 0);
-}
+function getReject(r) { return parseNum(firstVal(r, ['7 Day Reject %', '7 Day Failure %', 'Reject7Day', '1 Day Reject %']), 0); }
+function getUptime(r) { return parseNum(firstVal(r, ['7 Day Uptime %', 'Uptime7Day', 'Uptime', 'Uptime %']), 100); }
+function getVol(r) { return parseNum(firstVal(r, ['1 Day TX', '1 Day Activity', 'Volume']), 0); }
 function getVol7(r) {
-  return parseFloat(firstVal(r, ['7 Day TX', '7 Day Activity']), 0);
+  const v = firstVal(r, ['7 Day TX', '7 Day Activity']);
+  if (v === '' || v === null || v === undefined) return 0;
+  const n = parseFloat(String(v).replace(',', '').trim());
+  return isNaN(n) ? 0 : n;
 }
 function getLat(r) { return parseNum(firstVal(r, ['Latitude', 'Lat']), NaN); }
 function getLon(r) { return parseNum(firstVal(r, ['Longitude', 'Lng', 'Long']), NaN); }
-
-function getSiteId(r) {
-  return `${getName(r)}|${getCity(r)}`;
-}
+function getSiteId(r) { return `${getName(r)}|${getCity(r)}`; }
 
 function getFullAddress(r) {
-  const parts = [
-    getAddress(r),
-    getCity(r),
-    [getProvince(r), getZip(r)].filter(Boolean).join(' ')
-  ].filter(Boolean);
+  const parts = [getAddress(r), getCity(r), [getProvince(r), getZip(r)].filter(Boolean).join(' ')].filter(Boolean);
   return parts.join(', ');
 }
 
+// ============ STATUS (reason-aware) ============
 function getStatus(r) {
-  const state = String(firstVal(r, ['Kiosk State', 'Asset State', 'State']) || '').trim();
-  if (state === 'Offline') return 'Offline';
-  if (/^OOS/.test(state)) return 'Offline';
-  
+  const state = String(getKioskState(r) || '').trim();
+  const reason = String(getReasonCode(r) || '').trim();
+
+  if (state === 'Offline' || /^OOS/.test(state)) return 'Offline';
+  if (/No Tx in \d+ Days?/i.test(reason)) return 'Stale';
+  if (state === 'Full' || state === 'Paper Out') return 'Warning';
+
   const rej = getReject(r);
   const uptime = getUptime(r);
-  
-  if (state === 'Full' || state === 'Paper Out') return 'Warning';
+
   if (state === 'Partner') {
     return (rej >= 8 || uptime < 98) ? 'Warning' : 'Good';
   }
-
   if (rej >= 8) return 'Critical';
   if (rej >= 4) return 'Warning';
   return 'Good';
 }
+function isNeedsAttention(r) { return getStatus(r) !== 'Good'; }
 
 // ============ COMMITMENT ============
 function computeCommitmentKiosks() {
-  const abKiosks = allData.filter(r =>
-    (getProvince(r) || '').toString().trim().toUpperCase() === 'AB'
-  );
-  if (!abKiosks.length) {
-    commitmentKioskIds = new Set();
-    return;
-  }
+  const abKiosks = allData.filter(r => (getProvince(r) || '').toString().trim().toUpperCase() === 'AB');
+  if (!abKiosks.length) { commitmentKioskIds = new Set(); return; }
   const sorted = [...abKiosks].sort((a, b) => getVol7(b) - getVol7(a));
   const top33 = Math.max(1, Math.ceil(sorted.length * 0.33));
   commitmentKioskIds = new Set(sorted.slice(0, top33).map(getSiteId));
 }
-
-function isCommitmentKiosk(r) {
-  return commitmentKioskIds.has(getSiteId(r));
-}
+function isCommitmentKiosk(r) { return commitmentKioskIds.has(getSiteId(r)); }
 function isBelowCommitment(r) {
-  return isCommitmentKiosk(r) && getUptime(r) < COMMITMENT_TARGET;
+  if (!isCommitmentKiosk(r)) return false;
+  if (getStatus(r) === 'Offline') return true;
+  return getUptime(r) < COMMITMENT_TARGET;
 }
-
 function getCommitmentStats() {
   let above = 0, below = 0;
   for (const r of allData) {
     if (!isCommitmentKiosk(r)) continue;
-    if (getUptime(r) >= COMMITMENT_TARGET) above++;
-    else below++;
+    if (isBelowCommitment(r)) below++; else above++;
   }
   return { above, below, total: commitmentKioskIds.size };
 }
@@ -557,25 +485,42 @@ function getCommitmentStats() {
 function distanceKm(lat1, lon1, lat2, lon2) {
   const R = 6371, toRad = x => x * Math.PI / 180;
   const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat / 2) ** 2 +
-            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-            Math.sin(dLon / 2) ** 2;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
-
 function hasCoords(r) {
   const lat = getLat(r), lon = getLon(r);
   return !isNaN(lat) && !isNaN(lon) && lat !== 0 && lon !== 0;
 }
-
 function distanceTo(r) {
   if (!currentPos || !hasCoords(r)) return null;
   return distanceKm(currentPos.lat, currentPos.lon, getLat(r), getLon(r));
 }
 
+// ============ SCORING ============
+function scoreRow(r) {
+  const severity = getReject(r) * (getVol(r) + 1);
+  const state = getStatus(r);
+  let stateBoost = 1.0;
+  if (state === 'Offline') stateBoost = 2.5;
+  else if (state === 'Stale') stateBoost = 1.8;
+  else if (state === 'Critical') stateBoost = 1.3;
+
+  let commitBoost = 1.0;
+  if (isCommitmentKiosk(r)) commitBoost = isBelowCommitment(r) ? 2.5 : 1.5;
+
+  return severity * stateBoost * commitBoost;
+}
+function scoreWithDistance(r) {
+  const base = scoreRow(r);
+  if (!currentPos) return base;
+  const d = distanceTo(r);
+  const dist = d === null ? 40 : d;
+  return base * Math.pow(0.985, dist);
+}
+
 // ============ NEXT STOP ============
 function getNextStop() {
-  // 1. If a loop is active, we ONLY look at the loop stops in order
   if (activeLoop && loopStops.length) {
     for (let sid of loopStops) {
       if (!visited.has(sid) && !skipped.has(sid)) {
@@ -583,14 +528,11 @@ function getNextStop() {
         if (found) return found;
       }
     }
-    // If loop is done, clear it
-    activeLoop = null;
-    loopStops = [];
+    activeLoop = null; loopStops = [];
     speak('Loop complete. Great work.');
     return null;
   }
 
-  // 2. Otherwise, normal severity/distance sorting
   let remaining = allData.filter(r =>
     !visited.has(getSiteId(r)) &&
     !skipped.has(getSiteId(r)) &&
@@ -600,9 +542,8 @@ function getNextStop() {
 
   if (commitmentModeOnly) {
     const restricted = remaining.filter(isCommitmentKiosk);
-    if (restricted.length) {
-      remaining = restricted;
-    } else {
+    if (restricted.length) remaining = restricted;
+    else {
       commitmentModeOnly = false;
       updateCommitChip();
       toast('All commitment kiosks visited — mode off');
@@ -610,38 +551,28 @@ function getNextStop() {
   }
 
   if (!currentPos) {
-    remaining.sort((a, b) =>
-      (getReject(b) * (getVol(b) + 1)) - (getReject(a) * (getVol(a) + 1))
-    );
+    remaining.sort((a, b) => scoreRow(b) - scoreRow(a));
     return remaining[0];
   }
-
-  const scored = remaining.map(r => {
-    const severity = getReject(r) * (getVol(r) + 1);
-    const offlineBoost = (firstVal(r, ['Kiosk State']) || '') === 'Offline' ? 1.5 : 1.0;
-    const d = distanceTo(r);
-    const dist = d === null ? 40 : d;
-    const distancePenalty = Math.pow(0.985, dist);
-
-    let commitBoost = 1.0;
-    if (isCommitmentKiosk(r)) {
-      commitBoost = isBelowCommitment(r) ? 2.5 : 1.5;
-    }
-    return { r, score: severity * offlineBoost * distancePenalty * commitBoost };
-  });
-
+  const scored = remaining.map(r => ({ r, score: scoreWithDistance(r) }));
   scored.sort((a, b) => b.score - a.score);
   return scored[0].r;
+}
+
+function reasonLine(r) {
+  const bits = [];
+  bits.push(`${getReject(r).toFixed(1)}% 7d reject`);
+  bits.push(`${getVol(r)} 1d tx`);
+  if (isCommitmentKiosk(r) && isBelowCommitment(r)) bits.push('commitment ⬇');
+  const rc = getReasonCode(r);
+  if (rc) bits.push(rc.toLowerCase());
+  return bits.join(' · ');
 }
 
 function renderNextStop() {
   const r = getNextStop();
   const card = $('nextCard');
-  if (!r) {
-    card.classList.remove('show');
-    currentStopId = null;
-    return;
-  }
+  if (!r) { card.classList.remove('show'); currentStopId = null; $('btnHere').classList.remove('show'); return; }
   currentStopId = getSiteId(r);
   card.classList.add('show');
 
@@ -652,18 +583,21 @@ function renderNextStop() {
   $('ncAddress').textContent = getFullAddress(r) || 'No address on file';
 
   const d = distanceTo(r);
-  $('ncDistance').innerHTML = d === null
-    ? '📍 Distance unknown'
-    : `📍 ${d.toFixed(1)} km away`;
+  $('ncDistance').innerHTML = d === null ? '📍 Distance unknown' : `📍 ${d.toFixed(1)} km away`;
+  $('ncReason').textContent = reasonLine(r);
 
   const cEl = $('ncCommitment');
   if (isCommitmentKiosk(r)) {
     const below = isBelowCommitment(r);
     cEl.style.display = 'block';
     cEl.className = 'commitment-line ' + (below ? 'below' : 'ok');
-    cEl.textContent = below
-      ? `🎯 COMMITMENT KIOSK — ${getUptime(r).toFixed(1)}% (needs ${COMMITMENT_TARGET}%)`
-      : `🎯 Commitment kiosk — on target (${getUptime(r).toFixed(1)}%) ✅`;
+    if (below) {
+      cEl.textContent = getStatus(r) === 'Offline'
+        ? `🎯 COMMITMENT KIOSK — offline, counts against target`
+        : `🎯 COMMITMENT KIOSK — ${getUptime(r).toFixed(1)}% (needs ${COMMITMENT_TARGET}%)`;
+    } else {
+      cEl.textContent = `🎯 Commitment kiosk — on target (${getUptime(r).toFixed(1)}%) ✅`;
+    }
   } else {
     cEl.style.display = 'none';
   }
@@ -675,6 +609,18 @@ function renderNextStop() {
   const phone = getPhone(r);
   $('btnCall').disabled = !phone;
   $('btnCall').style.opacity = phone ? '1' : '.4';
+
+  if (stopTimerStart && stopTimerStart !== currentStopId) {
+    clearInterval(stopTimerInterval);
+    stopTimerStart = null;
+  }
+  $('btnHere').classList.add('show');
+  if (stopTimerStart === currentStopId) {
+    $('btnHere').classList.add('active');
+  } else {
+    $('btnHere').classList.remove('active');
+    $('btnHere').textContent = '📍 I\'m here — start timer';
+  }
 }
 
 function spokenNextStop(r) {
@@ -684,19 +630,22 @@ function spokenNextStop(r) {
   const rej = getReject(r).toFixed(1);
   const d = distanceTo(r);
   const distPart = d === null ? '' : ` ${d.toFixed(1)} kilometres away.`;
-  const commitPart = isCommitmentKiosk(r)
-    ? (isBelowCommitment(r)
-        ? ` This is a commitment kiosk at ${getUptime(r).toFixed(1)} percent uptime, below target.`
-        : ` Commitment kiosk on target.`)
+  let commitPart = '';
+  if (isCommitmentKiosk(r)) {
+    commitPart = isBelowCommitment(r)
+      ? ` Commitment kiosk below target.`
+      : ` Commitment kiosk on target.`;
+  }
+  const statePart = status === 'Offline' ? ' Currently offline.'
+    : status === 'Stale' ? ` Stale: ${getReasonCode(r)}.`
     : '';
-  return `Next stop: ${name}.${distPart} Address: ${addr}. Status ${status}. Reject ${rej} percent.${commitPart}`;
+  return `Next stop: ${name}.${distPart} Address: ${addr}. Status ${status}.${statePart} Reject ${rej} percent.${commitPart}`;
 }
 
 function updateProgress() {
   $('visitedCount').textContent = visited.size;
   $('totalCount').textContent = allData.length;
 }
-
 function updateCommitChip() {
   const chip = $('commitChip');
   if (commitmentModeOnly) {
@@ -707,9 +656,7 @@ function updateCommitChip() {
     chip.classList.remove('active-commit');
     chip.classList.add('off');
     const c = commitmentKioskIds.size;
-    $('commitText').textContent = c
-      ? `Commitment: Off (${c} tracked)`
-      : 'Commitment: Off';
+    $('commitText').textContent = c ? `Commitment: Off (${c} tracked)` : 'Commitment: Off';
   }
 }
 
@@ -717,10 +664,15 @@ function updateCommitChip() {
 function markDone() {
   if (!currentStopId) return;
   visited.add(currentStopId);
-  try { localStorage.setItem('angela_visited', JSON.stringify([...visited])); } catch (e) {}
+  skipped.delete(currentStopId);
+  try {
+    localStorage.setItem('angela_visited', JSON.stringify([...visited]));
+    localStorage.setItem('angela_skipped', JSON.stringify([...skipped]));
+  } catch (e) {}
   updateProgress();
   const done = allData.find(r => getSiteId(r) === currentStopId);
   const name = done ? getName(done) : 'stop';
+  clearInterval(stopTimerInterval); stopTimerStart = null;
   speak(`Marked ${name} done.`);
   setTimeout(() => {
     renderNextStop();
@@ -734,6 +686,7 @@ function markDone() {
 function skipStop() {
   if (!currentStopId) return;
   skipped.add(currentStopId);
+  try { localStorage.setItem('angela_skipped', JSON.stringify([...skipped])); } catch (e) {}
   const r = allData.find(x => getSiteId(x) === currentStopId);
   speak(`Skipped ${r ? getName(r) : 'stop'}.`);
   setTimeout(() => renderNextStop(), 1200);
@@ -752,81 +705,142 @@ function toggleCommitmentMode() {
   commitmentModeOnly = !commitmentModeOnly;
   updateCommitChip();
   renderNextStop();
-  if (commitmentModeOnly) {
-    speak(`Commitment mode on. Routing only to ${commitmentKioskIds.size} commitment kiosks.`);
+  if (commitmentModeOnly) speak(`Commitment mode on. Routing only to ${commitmentKioskIds.size} commitment kiosks.`);
+  else speak('Commitment mode off. Routing all kiosks.');
+}
+
+function toggleStopTimer() {
+  if (!currentStopId) return;
+  if (stopTimerStart === currentStopId) {
+    clearInterval(stopTimerInterval);
+    stopTimerStart = null;
+    $('btnHere').classList.remove('active');
+    $('btnHere').textContent = '📍 I\'m here — start timer';
+    speak('Timer stopped.');
   } else {
-    speak('Commitment mode off. Routing all kiosks.');
+    stopTimerStart = currentStopId;
+    const start = Date.now();
+    $('btnHere').classList.add('active');
+    const r = allData.find(x => getSiteId(x) === currentStopId);
+    speak(`Timer started at ${r ? getName(r) : 'this store'}.`);
+    clearInterval(stopTimerInterval);
+    stopTimerInterval = setInterval(() => {
+      const el = $('btnHere');
+      if (!el.classList.contains('active')) return;
+      const secs = Math.floor((Date.now() - start) / 1000);
+      const m = Math.floor(secs / 60), s = secs % 60;
+      el.textContent = `⏱️ On site — ${m}:${String(s).padStart(2, '0')}`;
+    }, 1000);
   }
 }
 
 $('btnDone').addEventListener('click', markDone);
 $('btnSkip').addEventListener('click', skipStop);
 $('btnCall').addEventListener('click', callStore);
+$('btnHere').addEventListener('click', toggleStopTimer);
 $('commitChip').addEventListener('click', toggleCommitmentMode);
 
-function findNearby(km = 10) {
+function findNearby(km = 10, onlyNeedsAttention = true) {
   if (!currentPos) return null;
   return allData
     .filter(r => hasCoords(r) && (getProvince(r) || '').toUpperCase() === 'AB')
+    .filter(r => !onlyNeedsAttention || isNeedsAttention(r))
     .map(r => ({ asset: r, dist: distanceTo(r) }))
     .filter(x => x.dist !== null && x.dist <= km)
     .sort((a, b) => a.dist - b.dist);
 }
 
+// ============ CITY DETECTION ============
+function getCities() {
+  const counts = {};
+  for (const r of allData) {
+    if ((getProvince(r) || '').toUpperCase() !== 'AB') continue;
+    if (visited.has(getSiteId(r)) || skipped.has(getSiteId(r))) continue;
+    const c = (getCity(r) || '').trim();
+    if (!c) continue;
+    counts[c] = (counts[c] || 0) + 1;
+  }
+  return Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+}
+
+// Try to parse an ordinal answer ("the first one", "second")
+function parseOrdinal(t) {
+  if (/\b(first|1st|one)\b/.test(t)) return 0;
+  if (/\b(second|2nd|two)\b/.test(t)) return 1;
+  if (/\b(third|3rd|three)\b/.test(t)) return 2;
+  if (/\b(fourth|4th|four)\b/.test(t)) return 3;
+  return -1;
+}
+
 // ============ CONVERSATIONAL INTENT PARSER ============
 function parseCommand(text) {
   const t = String(text).toLowerCase();
-  
-  // 1. PLAN MY ROUTE (The Dispatcher)
-  if (t.match(/plan|route|edmonton|calgary|kind of day|focus/)) {
-    
-    // Check if the user is confirming a plan
-    if (t.includes('edmonton') || t === 'yes' || t === 'yeah') {
-      if (pendingPlan === 'edmonton' || pendingPlan === 'split') {
-        buildLoop('edmonton');
-        return "Route locked. Starting with the farthest Edmonton stop and heading back towards the city.";
+
+  // --- If a plan question is open, try to answer it FIRST ---
+  if (pendingPlan) {
+    const cities = getCities();
+    const namedCity = cities.find(c => t.includes(c.toLowerCase()));
+    if (namedCity) {
+      buildLoop(namedCity);
+      return `Route locked for ${namedCity}.`;
+    }
+    if (/\b(yes|yeah|sure|okay|ok|do it|go ahead|start)\b/.test(t)) {
+      if (pendingPlan === 'split') {
+        return `Which city — ${cities.slice(0, 3).join(', ') || 'none'}?`;
+      }
+      buildLoop(pendingPlan);
+      return `Route locked for ${pendingPlan}.`;
+    }
+    if (/\b(no|nope|cancel|never mind|nevermind)\b/.test(t)) {
+      const was = pendingPlan;
+      pendingPlan = null;
+      return `Cancelled ${was === 'split' ? 'the plan question' : was + ' loop'}.`;
+    }
+    if (pendingPlan === 'split') {
+      const idx = parseOrdinal(t);
+      if (idx >= 0 && cities[idx]) {
+        buildLoop(cities[idx]);
+        return `Route locked for ${cities[idx]}.`;
       }
     }
-    if (t.includes('calgary')) {
-      if (pendingPlan === 'calgary' || pendingPlan === 'split' || pendingPlan === 'edmonton') {
-        buildLoop('calgary');
-        return "Route locked. Starting with the farthest Calgary stop and working your way back.";
-      }
+    // Fall through if they said something unrelated — clear the pending question
+    pendingPlan = null;
+  }
+
+  // --- PLAN / DISPATCH ---
+  if (t.match(/\bplan\b|\broute\b|kind of day|focus/)) {
+    const cities = getCities();
+    const namedCity = cities.find(c => t.includes(c.toLowerCase()));
+    if (namedCity) {
+      buildLoop(namedCity);
+      return `Route locked for ${namedCity}. Starting from the farthest priority stop and working back toward the cluster.`;
     }
 
-    // Otherwise, analyze the fires (ONLY IF we aren't already waiting for an answer)
-    if (!pendingPlan) {
-      let remaining = allData.filter(r =>
-        !visited.has(getSiteId(r)) && !skipped.has(getSiteId(r)) && (getProvince(r) || '').toUpperCase() === 'AB'
-      );
-      if (!remaining.length) return 'All stops are complete.';
-      
-      // Rank by pure severity (ignore distance)
-      remaining.map(r => {
-        const severity = getReject(r) * (getVol(r) + 1);
-        const offlineBoost = (firstVal(r, ['Kiosk State']) || '') === 'Offline' ? 1.5 : 1.0;
-        let commitBoost = isCommitmentKiosk(r) ? (isBelowCommitment(r) ? 2.5 : 1.5) : 1.0;
-        r._score = severity * offlineBoost * commitBoost;
-        return r;
-      });
-      remaining.sort((a, b) => b._score - a._score);
+    let remaining = allData.filter(r =>
+      !visited.has(getSiteId(r)) && !skipped.has(getSiteId(r)) &&
+      (getProvince(r) || '').toUpperCase() === 'AB'
+    );
+    if (!remaining.length) return 'All stops are complete.';
 
-      const edmonton = remaining.filter(r => getCity(r).toLowerCase().includes('edmonton'));
-      const calgary = remaining.filter(r => getCity(r).toLowerCase().includes('calgary'));
+    const cityScore = {};
+    for (const r of remaining) {
+      const c = (getCity(r) || '').trim();
+      if (!c) continue;
+      cityScore[c] = (cityScore[c] || 0) + scoreRow(r);
+    }
+    const ranked = Object.entries(cityScore).sort((a, b) => b[1] - a[1]);
+    if (!ranked.length) return 'No city data found.';
+    const top = ranked[0][0];
+    const topScore = ranked[0][1];
+    const runnerUp = ranked[1];
 
-      const worstEd = edmonton.length ? edmonton[0]._score : 0;
-      const worstCal = calgary.length ? calgary[0]._score : 0;
-
-      if (worstCal > worstEd * 1.2) {
-        pendingPlan = 'calgary';
-        return `It's a Calgary day. The worst kiosks are in Calgary. Do you want the Calgary loop?`;
-      } else if (worstEd > worstCal * 1.2) {
-        pendingPlan = 'edmonton';
-        return `It's an Edmonton day. The worst kiosks are in Edmonton. Do you want the Edmonton loop?`;
-      } else {
-        pendingPlan = 'split';
-        return `It's a split day. Do you want the Edmonton loop or the Calgary loop?`;
-      }
+    if (!runnerUp || topScore > runnerUp[1] * 1.2) {
+      pendingPlan = top;
+      return `Looks like a ${top} day. Do you want the ${top} loop?`;
+    } else {
+      pendingPlan = 'split';
+      const names = ranked.slice(0, 3).map(x => x[0]).join(', ');
+      return `Split day. Top cities by severity: ${names}. Which one do you want?`;
     }
   }
 
@@ -839,10 +853,12 @@ function parseCommand(text) {
   if (t.match(/worst|fire|critical|problem/)) {
     const remaining = allData.filter(r => !visited.has(getSiteId(r)) && !skipped.has(getSiteId(r)) && (getProvince(r) || '').toUpperCase() === 'AB');
     if (!remaining.length) return 'No stops left.';
-    remaining.sort((a, b) => getReject(b) - getReject(a));
+    remaining.sort((a, b) => scoreRow(b) - scoreRow(a));
     const worst = remaining[0];
     const dist = distanceTo(worst);
-    return `The worst kiosk right now is ${getName(worst)} in ${getCity(worst)}. Reject rate is ${getReject(worst).toFixed(1)} percent.${dist !== null ? ` It is ${dist.toFixed(1)} kilometres away.` : ''}`;
+    const statePart = getStatus(worst) === 'Offline' ? ' It is offline.' :
+      getReasonCode(worst) ? ` Reason: ${getReasonCode(worst)}.` : '';
+    return `The worst kiosk right now is ${getName(worst)} in ${getCity(worst)}. Reject rate is ${getReject(worst).toFixed(1)} percent.${statePart}${dist !== null ? ` It is ${dist.toFixed(1)} kilometres away.` : ''}`;
   }
 
   if (t.match(/how many|time|left/)) {
@@ -850,126 +866,108 @@ function parseCommand(text) {
     if (!remaining.length) return 'You have zero stops left. Great work today.';
     const next = getNextStop();
     const dist = next ? distanceTo(next) : null;
-    return `You have ${remaining.length} stops remaining. ${dist !== null ? `Your nearest priority stop is ${dist.toFixed(1)} kilometres away.` : ''}`;
+    return `You have ${remaining.length} stops remaining. ${dist !== null ? `Your next priority stop is ${dist.toFixed(1)} kilometres away.` : ''}`;
   }
 
   if (t.match(/status|report|briefing|summary|commitment/)) {
     if (t.match(/commitment mode|only commitment|focus commitment/)) {
-      if (!commitmentModeOnly) {
-        commitmentModeOnly = true;
-        updateCommitChip();
-        renderNextStop();
-      }
+      if (!commitmentModeOnly) { commitmentModeOnly = true; updateCommitChip(); renderNextStop(); }
       return `Commitment mode on. Routing only to ${commitmentKioskIds.size} commitment kiosks.`;
     }
-
-    const critical = allData.filter(r => getStatus(r) === 'Critical' && (getProvince(r)||'').toUpperCase()==='AB').length;
-    const offline = allData.filter(r => getStatus(r) === 'Offline' && (getProvince(r)||'').toUpperCase()==='AB').length;
+    const critical = allData.filter(r => getStatus(r) === 'Critical' && (getProvince(r) || '').toUpperCase() === 'AB').length;
+    const stale = allData.filter(r => getStatus(r) === 'Stale' && (getProvince(r) || '').toUpperCase() === 'AB').length;
+    const offline = allData.filter(r => getStatus(r) === 'Offline' && (getProvince(r) || '').toUpperCase() === 'AB').length;
     const commit = getCommitmentStats();
-    let report = `Alberta status report. ${critical} critical kiosks, ${offline} offline.`;
-    if (commit.total > 0) report += ` Commitment target: ${commit.above} of ${commit.total} are at or above 98 percent.`;
+    let report = `Alberta status report. ${critical} critical, ${stale} stale, ${offline} offline.`;
+    if (commit.total > 0) report += ` Commitment: ${commit.above} of ${commit.total} at or above 98 percent.`;
     return report;
   }
 
   if (t.match(/nearby|near me|close/)) {
     if (!currentPos) return 'I need your location. Please allow GPS and try again.';
-    const near = findNearby(10);
-    if (!near || !near.length) return 'No Alberta assets within 10 kilometres.';
-    const top = near.slice(0, 3)
-      .map(x => `${getName(x.asset)} at ${getAddress(x.asset)}`)
-      .join(', then ');
-    return `Found ${near.length} nearby. Closest: ${top}.`;
+    const near = findNearby(10, true);
+    if (!near || !near.length) return 'No assets needing attention within 10 kilometres.';
+    const top = near.slice(0, 3).map(x => `${getName(x.asset)} at ${x.dist.toFixed(1)} kilometres`).join(', then ');
+    return `Found ${near.length} needing attention nearby. Closest: ${top}.`;
   }
 
-  if (t.match(/done|finished|completed|mark/)) {
-    markDone();
-    return "Marking this stop as complete.";
+  if (t.match(/i'?m here|on site|start timer|arrived/)) {
+    if (!currentStopId) return 'No active stop.';
+    toggleStopTimer();
+    return stopTimerStart ? 'Timer started.' : 'Timer stopped.';
   }
 
-  if (t.match(/skip|next one|move on/)) {
-    skipStop();
-    return "Skipping this stop.";
-  }
-
-  if (t.match(/call|phone|dial/)) {
-    callStore();
-    return "Calling the store.";
-  }
+  if (t.match(/done|finished|completed|mark/)) { markDone(); return 'Marking this stop as complete.'; }
+  if (t.match(/skip|next one|move on/)) { skipStop(); return 'Skipping this stop.'; }
+  if (t.match(/call|phone|dial/)) { callStore(); return 'Calling the store.'; }
 
   if (t.match(/reset|start over/)) {
-    visited.clear();
-    skipped.clear();
-    activeLoop = null;
-    loopStops = [];
-    pendingPlan = null;
-    try { localStorage.removeItem('angela_visited'); } catch (e) {}
-    updateProgress();
-    renderNextStop();
+    visited.clear(); skipped.clear();
+    activeLoop = null; loopStops = []; pendingPlan = null;
+    try { localStorage.removeItem('angela_visited'); localStorage.removeItem('angela_skipped'); } catch (e) {}
+    updateProgress(); renderNextStop();
     return 'Route reset. All stops unmarked.';
   }
 
-  return "I didn't catch that. Try asking to plan your route.";
+  return "I didn't catch that. Try 'plan my route' or 'what's next'.";
 }
 
-// ============ THE NEW LOOP BUILDER ============
+// ============ LOOP BUILDER (per-city anchor) ============
 function buildLoop(cityName) {
-  const targetCity = cityName.toLowerCase();
-  let cityKiosks = allData.filter(r => 
-    !visited.has(getSiteId(r)) && 
-    !skipped.has(getSiteId(r)) && 
-    getCity(r).toLowerCase().includes(targetCity) &&
+  const target = cityName.toLowerCase();
+  let cityKiosks = allData.filter(r =>
+    !visited.has(getSiteId(r)) && !skipped.has(getSiteId(r)) &&
+    getCity(r).toLowerCase().includes(target) &&
     (getProvince(r) || '').toUpperCase() === 'AB'
   );
-
   if (!cityKiosks.length) {
     speak(`No remaining stops in ${cityName}.`);
     pendingPlan = null;
     return;
   }
 
-  // Sort by severity to find the top 4 absolute priorities
-  cityKiosks.map(r => {
-    const severity = getReject(r) * (getVol(r) + 1);
-    const offlineBoost = (firstVal(r, ['Kiosk State']) || '') === 'Offline' ? 1.5 : 1.0;
-    let commitBoost = isCommitmentKiosk(r) ? (isBelowCommitment(r) ? 2.5 : 1.5) : 1.0;
-    r._score = severity * offlineBoost * commitBoost;
-    return r;
-  });
-  cityKiosks.sort((a, b) => b._score - a._score);
+  const withCoords = cityKiosks.filter(hasCoords);
+  let anchorLat, anchorLon;
+  if (withCoords.length) {
+    anchorLat = withCoords.reduce((s, r) => s + getLat(r), 0) / withCoords.length;
+    anchorLon = withCoords.reduce((s, r) => s + getLon(r), 0) / withCoords.length;
+  } else if (currentPos) {
+    anchorLat = currentPos.lat; anchorLon = currentPos.lon;
+  } else {
+    anchorLat = 53.5461; anchorLon = -113.4938;
+  }
+
+  cityKiosks.sort((a, b) => scoreRow(b) - scoreRow(a));
   const top4 = cityKiosks.slice(0, 4);
 
-  // Now sort those 4 by distance to Edmonton (Farthest first)
-  const EDMONTON_LAT = 53.5461, EDMONTON_LON = -113.4938;
-  
   top4.sort((a, b) => {
-    const distA = distanceKm(EDMONTON_LAT, EDMONTON_LON, getLat(a), getLon(a));
-    const distB = distanceKm(EDMONTON_LAT, EDMONTON_LON, getLat(b), getLon(b));
-    return distB - distA; // Farthest first
+    const dA = hasCoords(a) ? distanceKm(anchorLat, anchorLon, getLat(a), getLon(a)) : 0;
+    const dB = hasCoords(b) ? distanceKm(anchorLat, anchorLon, getLat(b), getLon(b)) : 0;
+    return dB - dA;
   });
 
   loopStops = top4.map(r => getSiteId(r));
-  activeLoop = targetCity;
+  activeLoop = target;
   pendingPlan = null;
-  
   renderNextStop();
 }
 
 // ============ SPEECH RECOGNITION ============
+let cancelledByUser = false;
+
 function startVoiceRecognition(isAutoRestart = false) {
   if (!allData.length) return toast('Load CSV first');
-  if (isListening) return; 
-  if (isSpeaking) return; // HARD LOCK: DO NOT LISTEN IF SHE IS TALKING
+  if (isListening) return;
+  if (isSpeaking) return;
 
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) return toast('Voice not supported on this browser');
 
+  cancelledByUser = false;
   $('micBtn').classList.remove('listening');
   $('micBtn').classList.add('thinking');
-  
-  if (!isAutoRestart) {
-    $('status').textContent = '⏳ Get ready…';
-  }
-  
+  if (!isAutoRestart) $('status').textContent = '⏳ Get ready…';
+
   setTimeout(() => {
     try {
       recognition = new SR();
@@ -978,12 +976,13 @@ function startVoiceRecognition(isAutoRestart = false) {
       recognition.interimResults = false;
 
       recognition.onresult = e => {
+        if (cancelledByUser) return;
         isListening = false;
         $('micBtn').classList.remove('listening');
         const last = e.results[e.results.length - 1];
         const text = last[0].transcript.trim();
+        if (!text) return;
         $('heard').textContent = text;
-        
         const reply = parseCommand(text);
         if (reply) speak(reply);
         else if (handsFreeMode && !pendingPlan) startVoiceRecognition(true);
@@ -993,17 +992,13 @@ function startVoiceRecognition(isAutoRestart = false) {
         isListening = false;
         $('micBtn').classList.remove('listening', 'thinking');
         if (e.error === 'not-allowed') toast('Mic permission denied');
-        else if (e.error === 'no-speech') {
-          if (!isAutoRestart) $('status').textContent = 'Didn\'t hear anything. Tap to try again.';
-        }
+        else if (e.error === 'no-speech' && !isAutoRestart) $('status').textContent = 'Didn\'t hear anything. Tap to try again.';
       };
 
       recognition.onend = () => {
         isListening = false;
         $('micBtn').classList.remove('listening');
-        if (!$('micBtn').classList.contains('thinking')) {
-          $('status').textContent = 'Tap the mic to talk.';
-        }
+        if (!$('micBtn').classList.contains('thinking')) $('status').textContent = 'Tap the mic to talk.';
       };
 
       recognition.start();
@@ -1011,18 +1006,20 @@ function startVoiceRecognition(isAutoRestart = false) {
       $('micBtn').classList.remove('thinking');
       $('micBtn').classList.add('listening');
       $('status').textContent = '🎙️ Listening…';
-
     } catch (e) {
       toast('Could not start listening');
       $('micBtn').classList.remove('thinking');
     }
-  }, isAutoRestart ? 800 : 1200); 
+  }, isAutoRestart ? 800 : 1200);
 }
 
 $('micBtn').addEventListener('click', () => {
   if (isListening) {
+    cancelledByUser = true;
     isListening = false;
-    if (recognition) recognition.stop();
+    if (recognition) {
+      try { recognition.abort(); } catch (e) {}
+    }
     $('micBtn').classList.remove('listening', 'thinking');
     $('status').textContent = 'Paused. Tap the mic to talk.';
   } else {
@@ -1030,17 +1027,13 @@ $('micBtn').addEventListener('click', () => {
   }
 });
 
-// ============ RESET ROUTE ============
+// ============ RESET ============
 $('resetRouteBtn').addEventListener('click', () => {
   if (!confirm('Clear all visited stops? This cannot be undone.')) return;
-  visited.clear();
-  skipped.clear();
-  activeLoop = null;
-  loopStops = [];
-  pendingPlan = null;
-  try { localStorage.removeItem('angela_visited'); } catch (e) {}
-  updateProgress();
-  renderNextStop();
+  visited.clear(); skipped.clear();
+  activeLoop = null; loopStops = []; pendingPlan = null;
+  try { localStorage.removeItem('angela_visited'); localStorage.removeItem('angela_skipped'); } catch (e) {}
+  updateProgress(); renderNextStop();
   toast('Route reset');
 });
 
@@ -1050,7 +1043,6 @@ function updateGpsChip(status, text) {
   chip.className = 'chip ' + status;
   $('gpsText').textContent = text;
 }
-
 if (navigator.geolocation) {
   updateGpsChip('off', 'GPS: waiting…');
   navigator.geolocation.watchPosition(
@@ -1058,14 +1050,9 @@ if (navigator.geolocation) {
       const first = !currentPos;
       currentPos = { lat: pos.coords.latitude, lon: pos.coords.longitude };
       updateGpsChip('on', `GPS: ±${Math.round(pos.coords.accuracy)}m`);
-      if (first && allData.length) {
-        renderNextStop();
-        toast('GPS locked');
-      }
+      if (first && allData.length) { renderNextStop(); toast('GPS locked'); }
     },
-    err => {
-      updateGpsChip('off', `GPS error`);
-    },
+    err => updateGpsChip('off', 'GPS error'),
     { enableHighAccuracy: true, maximumAge: 30000, timeout: 15000 }
   );
 } else {
