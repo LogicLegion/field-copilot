@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#f8fafc">
 <meta name="color-scheme" content="light">
-<title>Angela — Field Copilot v2.1</title>
+<title>Angela — Field Copilot v2.2</title>
 <style>
   html, body {
     background-color: #f8fafc !important; color: #0f172a !important;
@@ -88,10 +88,6 @@
   .next-card .label { font-size: .75rem; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 12px; font-weight: 700; }
   .next-card .name { font-size: 1.4rem; font-weight: 800; color: #0f172a; margin-bottom: 6px; line-height: 1.2; letter-spacing: -.5px; }
   .next-card .address { font-size: .9rem; color: #475569; margin-bottom: 14px; line-height: 1.4; }
-  .next-card .distance {
-    font-size: .85rem; color: #2563eb; margin-bottom: 14px; font-weight: 700;
-    display: inline-flex; align-items: center; gap: 6px; background: #eff6ff; padding: 4px 10px; border-radius: 8px;
-  }
   .next-card .reason {
     font-size: .78rem; color: #64748b; margin-bottom: 14px; font-family: ui-monospace, Menlo, monospace;
     background: #f8fafc; padding: 6px 10px; border-radius: 8px; border: 1px solid #e2e8f0;
@@ -117,15 +113,6 @@
   .btn-call { background: #3b82f6; } .btn-call:hover { background: #2563eb; }
   .btn-done { background: #10b981; } .btn-done:hover { background: #059669; }
   .btn-skip { background: #e2e8f0; color: #475569; } .btn-skip:hover { background: #cbd5e1; }
-
-  .btn-here {
-    width: 100%; max-width: 420px; margin-bottom: 16px; padding: 14px; border-radius: 14px;
-    border: none; font-size: .95rem; font-weight: 700; cursor: pointer;
-    background: #6366f1; color: #fff; transition: all .15s; display: none;
-  }
-  .btn-here.show { display: block; }
-  .btn-here:active { transform: scale(.98); }
-  .btn-here.active { background: #f59e0b; }
 
   .panel { background: #fff; border-radius: 16px; padding: 16px; margin-top: 12px; width: 100%; max-width: 420px; font-size: .9rem; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
   .panel .label { color: #64748b; font-size: .7rem; text-transform: uppercase; margin-bottom: 6px; font-weight: 700; letter-spacing: .5px; }
@@ -155,7 +142,6 @@
 </div>
 
 <div class="chips-row">
-  <div class="chip off" id="gpsChip"><span class="dot"></span><span id="gpsText">GPS: waiting…</span></div>
   <div class="chip clickable" id="commitChip" title="Tap to toggle Commitment Mode"><span>🎯</span> <span id="commitText">Commitment: Off</span></div>
 </div>
 
@@ -175,7 +161,6 @@
   <div class="status-badge" id="ncStatus">—</div>
   <div class="name" id="ncName">—</div>
   <div class="address" id="ncAddress">—</div>
-  <div class="distance" id="ncDistance"></div>
   <div class="reason" id="ncReason"></div>
   <div class="commitment-line" id="ncCommitment"></div>
   <div class="metrics">
@@ -190,8 +175,6 @@
   </div>
 </div>
 
-<button class="btn-here" id="btnHere">📍 I'm here — start timer</button>
-
 <button class="mic" id="micBtn" disabled>🎤</button>
 
 <div class="panel"><div class="label">You said</div><div class="value" id="heard">—</div></div>
@@ -201,14 +184,12 @@
   <h3>Voice Commands</h3>
   <ul>
     <li>"Plan my route"</li>
-    <li>"Edmonton" / "Calgary" / "Lethbridge" / "Red Deer" (pick city)</li>
+    <li>"Edmonton" / "Calgary" (pick your city)</li>
     <li>"What's my next stop?"</li>
     <li>"Give me a status report"</li>
     <li>"Where is the worst kiosk?"</li>
     <li>"How many stops are left?"</li>
-    <li>"What's nearby?"</li>
     <li>"I'm done here" / "Skip this one"</li>
-    <li>"I'm here" (start timer)</li>
     <li>"Turn on commitment mode"</li>
     <li>"Call the store"</li>
   </ul>
@@ -222,22 +203,14 @@
 let allData = [];
 let visited = new Set();
 let skipped = new Set();
-let currentPos = null;
-let isListening = false;
-let recognition = null;
 let currentStopId = null;
 let commitmentModeOnly = false;
 let handsFreeMode = false;
 let isSpeaking = false;
-let speakWatchdog = null;
-let lastSpokenText = '';
 
 let activeLoop = null;
 let loopStops = [];
-let pendingPlan = null;        // 'edmonton' | 'calgary' | ... | 'split'
-
-let stopTimerStart = null;
-let stopTimerInterval = null;
+let pendingPlan = null; 
 
 const COMMITMENT_TARGET = 98;
 let commitmentKioskIds = new Set();
@@ -273,37 +246,19 @@ function toast(msg) {
   window._toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-// Adaptive watchdog: length of text * 120ms + 3s buffer, minimum 4s.
-function watchdogMs(text) {
-  const base = (text.length || 0) * 120 + 3000;
-  return Math.max(4000, Math.min(base, 30000));
-}
-
 function speak(text) {
   $('reply').textContent = text;
-  lastSpokenText = text;
   try {
     window.speechSynthesis.cancel();
     isSpeaking = true;
     $('micBtn').classList.remove('listening');
     $('micBtn').classList.add('thinking');
-
-    clearTimeout(speakWatchdog);
-    speakWatchdog = setTimeout(() => {
-      if (isSpeaking) {
-        isSpeaking = false;
-        $('micBtn').classList.remove('thinking');
-        $('status').textContent = 'Tap the mic to talk.';
-        if (handsFreeMode && !pendingPlan) startVoiceRecognition(true);
-      }
-    }, watchdogMs(text));
-
+    
     const u = new SpeechSynthesisUtterance(text);
     u.rate = 1.05;
     u.lang = 'en-CA';
-
+    
     u.onend = () => {
-      clearTimeout(speakWatchdog);
       isSpeaking = false;
       $('micBtn').classList.remove('thinking');
       $('status').textContent = 'Tap the mic to talk.';
@@ -311,18 +266,11 @@ function speak(text) {
         setTimeout(() => startVoiceRecognition(true), 800);
       }
     };
-    u.onerror = () => {
-      clearTimeout(speakWatchdog);
-      isSpeaking = false;
-      $('micBtn').classList.remove('thinking');
-      $('status').textContent = 'Tap the mic to talk.';
-    };
-
+    
     window.speechSynthesis.speak(u);
   } catch (e) {
     isSpeaking = false;
     $('micBtn').classList.remove('thinking');
-    console.warn('Speech failed:', e);
   }
 }
 
@@ -408,7 +356,6 @@ function getName(r) { return firstVal(r, ['Store', 'Site Name', 'Store Name']) |
 function getAddress(r) { return firstVal(r, ['Address', 'Addr']); }
 function getCity(r) { return firstVal(r, ['City']); }
 function getProvince(r) { return firstVal(r, ['State', 'Province']); }
-function getZip(r) { return firstVal(r, ['Zip', 'Postal Code']); }
 function getPhone(r) { return firstVal(r, ['Store Phone Number', 'Phone Number', 'Phone']); }
 function getReasonCode(r) { return firstVal(r, ['Reason Code']); }
 function getKioskState(r) { return firstVal(r, ['Kiosk State', 'Asset State', 'State']); }
@@ -431,13 +378,12 @@ function getVol7(r) {
 function getLat(r) { return parseNum(firstVal(r, ['Latitude', 'Lat']), NaN); }
 function getLon(r) { return parseNum(firstVal(r, ['Longitude', 'Lng', 'Long']), NaN); }
 function getSiteId(r) { return `${getName(r)}|${getCity(r)}`; }
-
 function getFullAddress(r) {
-  const parts = [getAddress(r), getCity(r), [getProvince(r), getZip(r)].filter(Boolean).join(' ')].filter(Boolean);
+  const parts = [getAddress(r), getCity(r), [getProvince(r), firstVal(r, ['Zip', 'Postal Code'])].filter(Boolean).join(' ')].filter(Boolean);
   return parts.join(', ');
 }
 
-// ============ STATUS (reason-aware) ============
+// ============ STATUS ============
 function getStatus(r) {
   const state = String(getKioskState(r) || '').trim();
   const reason = String(getReasonCode(r) || '').trim();
@@ -456,7 +402,6 @@ function getStatus(r) {
   if (rej >= 4) return 'Warning';
   return 'Good';
 }
-function isNeedsAttention(r) { return getStatus(r) !== 'Good'; }
 
 // ============ COMMITMENT ============
 function computeCommitmentKiosks() {
@@ -481,7 +426,7 @@ function getCommitmentStats() {
   return { above, below, total: commitmentKioskIds.size };
 }
 
-// ============ DISTANCE ============
+// ============ DISTANCE (Math only, no GPS) ============
 function distanceKm(lat1, lon1, lat2, lon2) {
   const R = 6371, toRad = x => x * Math.PI / 180;
   const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
@@ -491,10 +436,6 @@ function distanceKm(lat1, lon1, lat2, lon2) {
 function hasCoords(r) {
   const lat = getLat(r), lon = getLon(r);
   return !isNaN(lat) && !isNaN(lon) && lat !== 0 && lon !== 0;
-}
-function distanceTo(r) {
-  if (!currentPos || !hasCoords(r)) return null;
-  return distanceKm(currentPos.lat, currentPos.lon, getLat(r), getLon(r));
 }
 
 // ============ SCORING ============
@@ -511,15 +452,8 @@ function scoreRow(r) {
 
   return severity * stateBoost * commitBoost;
 }
-function scoreWithDistance(r) {
-  const base = scoreRow(r);
-  if (!currentPos) return base;
-  const d = distanceTo(r);
-  const dist = d === null ? 40 : d;
-  return base * Math.pow(0.985, dist);
-}
 
-// ============ NEXT STOP ============
+// ============ NEXT STOP (No GPS) ============
 function getNextStop() {
   if (activeLoop && loopStops.length) {
     for (let sid of loopStops) {
@@ -550,13 +484,9 @@ function getNextStop() {
     }
   }
 
-  if (!currentPos) {
-    remaining.sort((a, b) => scoreRow(b) - scoreRow(a));
-    return remaining[0];
-  }
-  const scored = remaining.map(r => ({ r, score: scoreWithDistance(r) }));
-  scored.sort((a, b) => b.score - a.score);
-  return scored[0].r;
+  // No GPS, just pure severity
+  remaining.sort((a, b) => scoreRow(b) - scoreRow(a));
+  return remaining[0];
 }
 
 function reasonLine(r) {
@@ -572,7 +502,7 @@ function reasonLine(r) {
 function renderNextStop() {
   const r = getNextStop();
   const card = $('nextCard');
-  if (!r) { card.classList.remove('show'); currentStopId = null; $('btnHere').classList.remove('show'); return; }
+  if (!r) { card.classList.remove('show'); currentStopId = null; return; }
   currentStopId = getSiteId(r);
   card.classList.add('show');
 
@@ -581,9 +511,6 @@ function renderNextStop() {
   $('ncStatus').className = 'status-badge ' + status;
   $('ncName').textContent = getName(r);
   $('ncAddress').textContent = getFullAddress(r) || 'No address on file';
-
-  const d = distanceTo(r);
-  $('ncDistance').innerHTML = d === null ? '📍 Distance unknown' : `📍 ${d.toFixed(1)} km away`;
   $('ncReason').textContent = reasonLine(r);
 
   const cEl = $('ncCommitment');
@@ -609,18 +536,6 @@ function renderNextStop() {
   const phone = getPhone(r);
   $('btnCall').disabled = !phone;
   $('btnCall').style.opacity = phone ? '1' : '.4';
-
-  if (stopTimerStart && stopTimerStart !== currentStopId) {
-    clearInterval(stopTimerInterval);
-    stopTimerStart = null;
-  }
-  $('btnHere').classList.add('show');
-  if (stopTimerStart === currentStopId) {
-    $('btnHere').classList.add('active');
-  } else {
-    $('btnHere').classList.remove('active');
-    $('btnHere').textContent = '📍 I\'m here — start timer';
-  }
 }
 
 function spokenNextStop(r) {
@@ -628,8 +543,6 @@ function spokenNextStop(r) {
   const addr = getFullAddress(r);
   const status = getStatus(r);
   const rej = getReject(r).toFixed(1);
-  const d = distanceTo(r);
-  const distPart = d === null ? '' : ` ${d.toFixed(1)} kilometres away.`;
   let commitPart = '';
   if (isCommitmentKiosk(r)) {
     commitPart = isBelowCommitment(r)
@@ -639,7 +552,7 @@ function spokenNextStop(r) {
   const statePart = status === 'Offline' ? ' Currently offline.'
     : status === 'Stale' ? ` Stale: ${getReasonCode(r)}.`
     : '';
-  return `Next stop: ${name}.${distPart} Address: ${addr}. Status ${status}.${statePart} Reject ${rej} percent.${commitPart}`;
+  return `Next stop: ${name}. Address: ${addr}. Status ${status}.${statePart} Reject ${rej} percent.${commitPart}`;
 }
 
 function updateProgress() {
@@ -672,7 +585,6 @@ function markDone() {
   updateProgress();
   const done = allData.find(r => getSiteId(r) === currentStopId);
   const name = done ? getName(done) : 'stop';
-  clearInterval(stopTimerInterval); stopTimerStart = null;
   speak(`Marked ${name} done.`);
   setTimeout(() => {
     renderNextStop();
@@ -709,46 +621,10 @@ function toggleCommitmentMode() {
   else speak('Commitment mode off. Routing all kiosks.');
 }
 
-function toggleStopTimer() {
-  if (!currentStopId) return;
-  if (stopTimerStart === currentStopId) {
-    clearInterval(stopTimerInterval);
-    stopTimerStart = null;
-    $('btnHere').classList.remove('active');
-    $('btnHere').textContent = '📍 I\'m here — start timer';
-    speak('Timer stopped.');
-  } else {
-    stopTimerStart = currentStopId;
-    const start = Date.now();
-    $('btnHere').classList.add('active');
-    const r = allData.find(x => getSiteId(x) === currentStopId);
-    speak(`Timer started at ${r ? getName(r) : 'this store'}.`);
-    clearInterval(stopTimerInterval);
-    stopTimerInterval = setInterval(() => {
-      const el = $('btnHere');
-      if (!el.classList.contains('active')) return;
-      const secs = Math.floor((Date.now() - start) / 1000);
-      const m = Math.floor(secs / 60), s = secs % 60;
-      el.textContent = `⏱️ On site — ${m}:${String(s).padStart(2, '0')}`;
-    }, 1000);
-  }
-}
-
 $('btnDone').addEventListener('click', markDone);
 $('btnSkip').addEventListener('click', skipStop);
 $('btnCall').addEventListener('click', callStore);
-$('btnHere').addEventListener('click', toggleStopTimer);
 $('commitChip').addEventListener('click', toggleCommitmentMode);
-
-function findNearby(km = 10, onlyNeedsAttention = true) {
-  if (!currentPos) return null;
-  return allData
-    .filter(r => hasCoords(r) && (getProvince(r) || '').toUpperCase() === 'AB')
-    .filter(r => !onlyNeedsAttention || isNeedsAttention(r))
-    .map(r => ({ asset: r, dist: distanceTo(r) }))
-    .filter(x => x.dist !== null && x.dist <= km)
-    .sort((a, b) => a.dist - b.dist);
-}
 
 // ============ CITY DETECTION ============
 function getCities() {
@@ -761,15 +637,6 @@ function getCities() {
     counts[c] = (counts[c] || 0) + 1;
   }
   return Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
-}
-
-// Try to parse an ordinal answer ("the first one", "second")
-function parseOrdinal(t) {
-  if (/\b(first|1st|one)\b/.test(t)) return 0;
-  if (/\b(second|2nd|two)\b/.test(t)) return 1;
-  if (/\b(third|3rd|three)\b/.test(t)) return 2;
-  if (/\b(fourth|4th|four)\b/.test(t)) return 3;
-  return -1;
 }
 
 // ============ CONVERSATIONAL INTENT PARSER ============
@@ -796,14 +663,7 @@ function parseCommand(text) {
       pendingPlan = null;
       return `Cancelled ${was === 'split' ? 'the plan question' : was + ' loop'}.`;
     }
-    if (pendingPlan === 'split') {
-      const idx = parseOrdinal(t);
-      if (idx >= 0 && cities[idx]) {
-        buildLoop(cities[idx]);
-        return `Route locked for ${cities[idx]}.`;
-      }
-    }
-    // Fall through if they said something unrelated — clear the pending question
+    // Fall through if they said something unrelated
     pendingPlan = null;
   }
 
@@ -855,18 +715,15 @@ function parseCommand(text) {
     if (!remaining.length) return 'No stops left.';
     remaining.sort((a, b) => scoreRow(b) - scoreRow(a));
     const worst = remaining[0];
-    const dist = distanceTo(worst);
     const statePart = getStatus(worst) === 'Offline' ? ' It is offline.' :
       getReasonCode(worst) ? ` Reason: ${getReasonCode(worst)}.` : '';
-    return `The worst kiosk right now is ${getName(worst)} in ${getCity(worst)}. Reject rate is ${getReject(worst).toFixed(1)} percent.${statePart}${dist !== null ? ` It is ${dist.toFixed(1)} kilometres away.` : ''}`;
+    return `The worst kiosk right now is ${getName(worst)} in ${getCity(worst)}. Reject rate is ${getReject(worst).toFixed(1)} percent.${statePart}`;
   }
 
   if (t.match(/how many|time|left/)) {
     const remaining = allData.filter(r => !visited.has(getSiteId(r)) && !skipped.has(getSiteId(r)) && (getProvince(r) || '').toUpperCase() === 'AB');
     if (!remaining.length) return 'You have zero stops left. Great work today.';
-    const next = getNextStop();
-    const dist = next ? distanceTo(next) : null;
-    return `You have ${remaining.length} stops remaining. ${dist !== null ? `Your next priority stop is ${dist.toFixed(1)} kilometres away.` : ''}`;
+    return `You have ${remaining.length} stops remaining.`;
   }
 
   if (t.match(/status|report|briefing|summary|commitment/)) {
@@ -881,20 +738,6 @@ function parseCommand(text) {
     let report = `Alberta status report. ${critical} critical, ${stale} stale, ${offline} offline.`;
     if (commit.total > 0) report += ` Commitment: ${commit.above} of ${commit.total} at or above 98 percent.`;
     return report;
-  }
-
-  if (t.match(/nearby|near me|close/)) {
-    if (!currentPos) return 'I need your location. Please allow GPS and try again.';
-    const near = findNearby(10, true);
-    if (!near || !near.length) return 'No assets needing attention within 10 kilometres.';
-    const top = near.slice(0, 3).map(x => `${getName(x.asset)} at ${x.dist.toFixed(1)} kilometres`).join(', then ');
-    return `Found ${near.length} needing attention nearby. Closest: ${top}.`;
-  }
-
-  if (t.match(/i'?m here|on site|start timer|arrived/)) {
-    if (!currentStopId) return 'No active stop.';
-    toggleStopTimer();
-    return stopTimerStart ? 'Timer started.' : 'Timer stopped.';
   }
 
   if (t.match(/done|finished|completed|mark/)) { markDone(); return 'Marking this stop as complete.'; }
@@ -912,7 +755,7 @@ function parseCommand(text) {
   return "I didn't catch that. Try 'plan my route' or 'what's next'.";
 }
 
-// ============ LOOP BUILDER (per-city anchor) ============
+// ============ LOOP BUILDER ============
 function buildLoop(cityName) {
   const target = cityName.toLowerCase();
   let cityKiosks = allData.filter(r =>
@@ -926,20 +769,21 @@ function buildLoop(cityName) {
     return;
   }
 
+  // Find the center of the city based on the kiosk coordinates
   const withCoords = cityKiosks.filter(hasCoords);
   let anchorLat, anchorLon;
   if (withCoords.length) {
     anchorLat = withCoords.reduce((s, r) => s + getLat(r), 0) / withCoords.length;
     anchorLon = withCoords.reduce((s, r) => s + getLon(r), 0) / withCoords.length;
-  } else if (currentPos) {
-    anchorLat = currentPos.lat; anchorLon = currentPos.lon;
   } else {
+    // Fallback to Edmonton center if no coords
     anchorLat = 53.5461; anchorLon = -113.4938;
   }
 
   cityKiosks.sort((a, b) => scoreRow(b) - scoreRow(a));
   const top4 = cityKiosks.slice(0, 4);
 
+  // Farthest from the city center first
   top4.sort((a, b) => {
     const dA = hasCoords(a) ? distanceKm(anchorLat, anchorLon, getLat(a), getLon(a)) : 0;
     const dB = hasCoords(b) ? distanceKm(anchorLat, anchorLon, getLat(b), getLon(b)) : 0;
@@ -1017,9 +861,7 @@ $('micBtn').addEventListener('click', () => {
   if (isListening) {
     cancelledByUser = true;
     isListening = false;
-    if (recognition) {
-      try { recognition.abort(); } catch (e) {}
-    }
+    if (recognition) { try { recognition.abort(); } catch (e) {} }
     $('micBtn').classList.remove('listening', 'thinking');
     $('status').textContent = 'Paused. Tap the mic to talk.';
   } else {
@@ -1036,28 +878,6 @@ $('resetRouteBtn').addEventListener('click', () => {
   updateProgress(); renderNextStop();
   toast('Route reset');
 });
-
-// ============ GPS ============
-function updateGpsChip(status, text) {
-  const chip = $('gpsChip');
-  chip.className = 'chip ' + status;
-  $('gpsText').textContent = text;
-}
-if (navigator.geolocation) {
-  updateGpsChip('off', 'GPS: waiting…');
-  navigator.geolocation.watchPosition(
-    pos => {
-      const first = !currentPos;
-      currentPos = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-      updateGpsChip('on', `GPS: ±${Math.round(pos.coords.accuracy)}m`);
-      if (first && allData.length) { renderNextStop(); toast('GPS locked'); }
-    },
-    err => updateGpsChip('off', 'GPS error'),
-    { enableHighAccuracy: true, maximumAge: 30000, timeout: 15000 }
-  );
-} else {
-  updateGpsChip('off', 'GPS: not supported');
-}
 </script>
 </body>
 </html>
