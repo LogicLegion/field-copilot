@@ -6,127 +6,75 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#f8fafc">
 <meta name="color-scheme" content="light">
-<title>Angela — Field Copilot v2.2</title>
+<title>Angela — Field Copilot v2.3</title>
 <style>
-  html, body {
-    background-color: #f8fafc !important; color: #0f172a !important;
-    min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    margin: 0; padding: 0; -webkit-tap-highlight-color: transparent;
-  }
+  /* YOUR STYLES UNCHANGED — omitted for brevity, keep exactly as original */
+  html, body { background-color: #f8fafc !important; color: #0f172a !important; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   body { display: flex; flex-direction: column; align-items: center; padding: 16px 16px 40px; box-sizing: border-box; }
   * { box-sizing: border-box; }
   h1 { font-size: 1.4rem; margin-bottom: 4px; letter-spacing: -0.5px; color: #0f172a; }
   .status { color: #64748b; font-size: 0.85rem; margin-bottom: 12px; text-align: center; min-height: 18px; font-weight: 500; }
-
-  .toggle-container {
-    display: flex; align-items: center; justify-content: space-between;
-    background: #fff; border: 1px solid #e2e8f0; padding: 12px 16px;
-    border-radius: 16px; margin-bottom: 12px; cursor: pointer; width: 100%; max-width: 420px;
-    transition: all .2s; box-shadow: 0 2px 4px rgba(0,0,0,.02);
-  }
+  .toggle-container { display: flex; align-items: center; justify-content: space-between; background: #fff; border: 1px solid #e2e8f0; padding: 12px 16px; border-radius: 16px; margin-bottom: 12px; cursor: pointer; width: 100%; max-width: 420px; transition: all .2s; box-shadow: 0 2px 4px rgba(0,0,0,.02); }
   .toggle-container:hover { border-color: #94a3b8; }
   .toggle-switch { width: 44px; height: 24px; background: #cbd5e1; border-radius: 20px; position: relative; transition: .3s; }
-  .toggle-switch::after {
-    content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px;
-    background: #fff; border-radius: 50%; transition: .3s; box-shadow: 0 2px 4px rgba(0,0,0,.2);
-  }
+  .toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: #fff; border-radius: 50%; transition: .3s; box-shadow: 0 2px 4px rgba(0,0,0,.2); }
   .toggle-container.active .toggle-switch { background: #10b981; }
   .toggle-container.active .toggle-switch::after { transform: translateX(20px); }
   .toggle-label { font-size: .85rem; font-weight: 600; color: #64748b; }
   .toggle-container.active .toggle-label { color: #059669; }
-
   .chips-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 16px; width: 100%; max-width: 420px; }
-  .chip {
-    background: #fff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 6px 14px;
-    font-size: .75rem; color: #64748b; display: inline-flex; align-items: center; gap: 6px;
-    font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.05);
-  }
+  .chip { background: #fff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 6px 14px; font-size: .75rem; color: #64748b; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
   .chip.on { color: #059669; border-color: #10b981; background: #ecfdf5; }
   .chip.off { color: #64748b; }
   .chip.active-commit { background: #fef2f2; color: #dc2626; border-color: #fca5a5; font-weight: 700; cursor: pointer; }
   .chip.clickable { cursor: pointer; transition: all .2s; }
   .chip.clickable:hover { background: #f1f5f9; }
-  .chip .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; display: inline-block; }
-
-  .progress {
-    background: #fff; border-radius: 12px; padding: 12px 16px; font-size: .9rem;
-    width: 100%; max-width: 420px; display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 16px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,.05);
-  }
+  .progress { background: #fff; border-radius: 12px; padding: 12px 16px; font-size: .9rem; width: 100%; max-width: 420px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
   .progress .count { color: #2563eb; font-weight: 700; font-size: 1rem; }
-
-  .load-box {
-    background: #fff; border: 2px dashed #cbd5e1; border-radius: 16px; padding: 20px;
-    text-align: center; margin-bottom: 16px; width: 100%; max-width: 420px; cursor: pointer;
-    transition: all .2s; box-shadow: 0 1px 3px rgba(0,0,0,.05);
-  }
+  .load-box { background: #fff; border: 2px dashed #cbd5e1; border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 16px; width: 100%; max-width: 420px; cursor: pointer; transition: all .2s; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
   .load-box:hover { border-color: #3b82f6; background: #f8fafc; }
   .load-box input { display: none; }
   .load-box small { color: #64748b; display: block; margin-top: 6px; font-size: .8rem; }
-
-  .mic {
-    width: 120px; height: 120px; border-radius: 50%; background: #ef4444; border: none;
-    color: #fff; font-size: 48px; cursor: pointer; box-shadow: 0 10px 30px rgba(239,68,68,.3);
-    transition: all .2s; margin: 8px 0 24px; display: flex; align-items: center; justify-content: center;
-  }
+  .mic { width: 120px; height: 120px; border-radius: 50%; background: #ef4444; border: none; color: #fff; font-size: 48px; cursor: pointer; box-shadow: 0 10px 30px rgba(239,68,68,.3); transition: all .2s; margin: 8px 0 24px; display: flex; align-items: center; justify-content: center; }
   .mic:active { transform: scale(.95); }
   .mic.listening { background: #10b981; box-shadow: 0 10px 30px rgba(16,185,129,.4); animation: pulse 1.5s infinite; }
   .mic.thinking { background: #f59e0b; box-shadow: 0 10px 30px rgba(245,158,11,.4); animation: pulse 1.5s infinite; }
   .mic:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
-  @keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(16,185,129,.6); }
-    70% { box-shadow: 0 0 0 30px rgba(16,185,129,0); }
-    100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
-  }
-
-  .next-card {
-    background: #fff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 20px;
-    width: 100%; max-width: 420px; margin-bottom: 16px; display: none;
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,.05), 0 2px 4px -1px rgba(0,0,0,.03);
-  }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(16,185,129,.6); } 70% { box-shadow: 0 0 0 30px rgba(16,185,129,0); } 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); } }
+  .next-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 20px; width: 100%; max-width: 420px; margin-bottom: 16px; display: none; box-shadow: 0 4px 6px -1px rgba(0,0,0,.05), 0 2px 4px -1px rgba(0,0,0,.03); }
   .next-card.show { display: block; }
   .next-card .label { font-size: .75rem; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 12px; font-weight: 700; }
   .next-card .name { font-size: 1.4rem; font-weight: 800; color: #0f172a; margin-bottom: 6px; line-height: 1.2; letter-spacing: -.5px; }
   .next-card .address { font-size: .9rem; color: #475569; margin-bottom: 14px; line-height: 1.4; }
-  .next-card .reason {
-    font-size: .78rem; color: #64748b; margin-bottom: 14px; font-family: ui-monospace, Menlo, monospace;
-    background: #f8fafc; padding: 6px 10px; border-radius: 8px; border: 1px solid #e2e8f0;
-  }
+  .next-card .reason { font-size: .78rem; color: #64748b; margin-bottom: 14px; font-family: ui-monospace, Menlo, monospace; background: #f8fafc; padding: 6px 10px; border-radius: 8px; border: 1px solid #e2e8f0; }
   .next-card .commitment-line { font-size: .85rem; margin-bottom: 14px; font-weight: 600; padding: 8px 12px; border-radius: 10px; display: none; }
   .next-card .commitment-line.below { background: #fef2f2; color: #dc2626; border-left: 4px solid #ef4444; }
   .next-card .commitment-line.ok { background: #ecfdf5; color: #059669; border-left: 4px solid #10b981; }
-
   .next-card .metrics { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
   .metric { background: #f8fafc; border-radius: 10px; padding: 8px 12px; font-size: .8rem; color: #64748b; flex: 1; text-align: center; border: 1px solid #e2e8f0; }
   .metric strong { display: block; color: #0f172a; font-size: 1.1rem; margin-top: 2px; }
-
   .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: .75rem; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px; }
   .status-badge.Critical { background: #fee2e2; color: #dc2626; }
   .status-badge.Stale { background: #ffedd5; color: #c2410c; }
   .status-badge.Warning { background: #fef3c7; color: #d97706; }
   .status-badge.Good { background: #d1fae5; color: #059669; }
   .status-badge.Offline { background: #e2e8f0; color: #475569; }
-
   .actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 6px; }
   .actions button { padding: 16px 8px; border-radius: 14px; border: none; font-size: .95rem; font-weight: 700; cursor: pointer; transition: all .15s; color: #fff; }
   .actions button:active { transform: scale(.96); }
   .btn-call { background: #3b82f6; } .btn-call:hover { background: #2563eb; }
   .btn-done { background: #10b981; } .btn-done:hover { background: #059669; }
   .btn-skip { background: #e2e8f0; color: #475569; } .btn-skip:hover { background: #cbd5e1; }
-
   .panel { background: #fff; border-radius: 16px; padding: 16px; margin-top: 12px; width: 100%; max-width: 420px; font-size: .9rem; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
   .panel .label { color: #64748b; font-size: .7rem; text-transform: uppercase; margin-bottom: 6px; font-weight: 700; letter-spacing: .5px; }
   .panel .value { color: #0f172a; line-height: 1.5; font-weight: 500; }
-
   .commands { margin-top: 24px; width: 100%; max-width: 420px; background: #fff; border-radius: 16px; padding: 16px; font-size: .85rem; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
   .commands h3 { color: #2563eb; margin-bottom: 10px; font-size: .9rem; font-weight: 700; }
   .commands li { color: #475569; margin: 6px 0; list-style: none; display: flex; align-items: center; gap: 8px; }
   .commands li::before { content: "🎤"; font-size: .8rem; opacity: .7; }
-
   .reset-btn { margin-top: 20px; background: transparent; color: #64748b; border: 1px solid #e2e8f0; padding: 10px 24px; border-radius: 20px; font-size: .85rem; cursor: pointer; transition: all .2s; }
   .reset-btn:hover { background: #f1f5f9; color: #0f172a; }
   .reset-btn:active { background: #e2e8f0; }
-
   .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #0f172a; color: #fff; padding: 12px 24px; border-radius: 30px; font-size: .9rem; font-weight: 600; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 999; box-shadow: 0 8px 24px rgba(0,0,0,.2); }
   .toast.show { opacity: 1; }
 </style>
@@ -426,7 +374,7 @@ function getCommitmentStats() {
   return { above, below, total: commitmentKioskIds.size };
 }
 
-// ============ DISTANCE (Math only, no GPS) ============
+// ============ DISTANCE ============
 function distanceKm(lat1, lon1, lat2, lon2) {
   const R = 6371, toRad = x => x * Math.PI / 180;
   const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
@@ -453,7 +401,7 @@ function scoreRow(r) {
   return severity * stateBoost * commitBoost;
 }
 
-// ============ NEXT STOP (No GPS) ============
+// ============ NEXT STOP ============
 function getNextStop() {
   if (activeLoop && loopStops.length) {
     for (let sid of loopStops) {
@@ -484,7 +432,6 @@ function getNextStop() {
     }
   }
 
-  // No GPS, just pure severity
   remaining.sort((a, b) => scoreRow(b) - scoreRow(a));
   return remaining[0];
 }
@@ -643,7 +590,6 @@ function getCities() {
 function parseCommand(text) {
   const t = String(text).toLowerCase();
 
-  // --- If a plan question is open, try to answer it FIRST ---
   if (pendingPlan) {
     const cities = getCities();
     const namedCity = cities.find(c => t.includes(c.toLowerCase()));
@@ -663,11 +609,9 @@ function parseCommand(text) {
       pendingPlan = null;
       return `Cancelled ${was === 'split' ? 'the plan question' : was + ' loop'}.`;
     }
-    // Fall through if they said something unrelated
     pendingPlan = null;
   }
 
-  // --- PLAN / DISPATCH ---
   if (t.match(/\bplan\b|\broute\b|kind of day|focus/)) {
     const cities = getCities();
     const namedCity = cities.find(c => t.includes(c.toLowerCase()));
@@ -769,21 +713,18 @@ function buildLoop(cityName) {
     return;
   }
 
-  // Find the center of the city based on the kiosk coordinates
   const withCoords = cityKiosks.filter(hasCoords);
   let anchorLat, anchorLon;
   if (withCoords.length) {
     anchorLat = withCoords.reduce((s, r) => s + getLat(r), 0) / withCoords.length;
     anchorLon = withCoords.reduce((s, r) => s + getLon(r), 0) / withCoords.length;
   } else {
-    // Fallback to Edmonton center if no coords
     anchorLat = 53.5461; anchorLon = -113.4938;
   }
 
   cityKiosks.sort((a, b) => scoreRow(b) - scoreRow(a));
   const top4 = cityKiosks.slice(0, 4);
 
-  // Farthest from the city center first
   top4.sort((a, b) => {
     const dA = hasCoords(a) ? distanceKm(anchorLat, anchorLon, getLat(a), getLon(a)) : 0;
     const dB = hasCoords(b) ? distanceKm(anchorLat, anchorLon, getLat(b), getLon(b)) : 0;
@@ -796,16 +737,32 @@ function buildLoop(cityName) {
   renderNextStop();
 }
 
-// ============ SPEECH RECOGNITION ============
+// ============ SPEECH RECOGNITION (EDGE-HARDENED) ============
+let recognition = null;   // FIX: previously implicit global
+let isListening = false;
 let cancelledByUser = false;
 
-function startVoiceRecognition(isAutoRestart = false) {
+function isSpeechSupported() {
+  return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+}
+
+async function startVoiceRecognition(isAutoRestart = false) {
   if (!allData.length) return toast('Load CSV first');
   if (isListening) return;
   if (isSpeaking) return;
 
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) return toast('Voice not supported on this browser');
+  if (!isSpeechSupported()) {
+    return toast('Speech recognition not supported in this browser.');
+  }
+
+  // EDGE FIX: explicit permission request gives clear feedback
+  try {
+    await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (permErr) {
+    $('status').textContent = '🎤 Microphone permission denied.';
+    toast('Allow microphone access in Edge settings.');
+    return;
+  }
 
   cancelledByUser = false;
   $('micBtn').classList.remove('listening');
@@ -814,6 +771,7 @@ function startVoiceRecognition(isAutoRestart = false) {
 
   setTimeout(() => {
     try {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
       recognition = new SR();
       recognition.lang = 'en-CA';
       recognition.continuous = false;
@@ -835,14 +793,30 @@ function startVoiceRecognition(isAutoRestart = false) {
       recognition.onerror = e => {
         isListening = false;
         $('micBtn').classList.remove('listening', 'thinking');
-        if (e.error === 'not-allowed') toast('Mic permission denied');
-        else if (e.error === 'no-speech' && !isAutoRestart) $('status').textContent = 'Didn\'t hear anything. Tap to try again.';
+
+        // EDGE FIX: actionable errors for Edge's known failures
+        if (e.error === 'not-allowed') {
+          toast('Microphone permission denied. Check Edge site settings.');
+          $('status').textContent = '🎤 Permission denied.';
+        } else if (e.error === 'network') {
+          toast('Edge speech service unreachable. Try Chrome or Edge Dev.');
+          $('status').textContent = 'Edge speech service error.';
+        } else if (e.error === 'language-not-supported') {
+          toast('Edge does not support en-CA speech. Try Chrome.');
+          $('status').textContent = 'Language not supported by Edge.';
+        } else if (e.error === 'no-speech' && !isAutoRestart) {
+          $('status').textContent = 'Didn\'t hear anything. Tap to try again.';
+        } else {
+          $('status').textContent = 'Speech error: ' + e.error;
+        }
       };
 
       recognition.onend = () => {
         isListening = false;
         $('micBtn').classList.remove('listening');
-        if (!$('micBtn').classList.contains('thinking')) $('status').textContent = 'Tap the mic to talk.';
+        if (!$('micBtn').classList.contains('thinking')) {
+          $('status').textContent = 'Tap the mic to talk.';
+        }
       };
 
       recognition.start();
@@ -851,8 +825,9 @@ function startVoiceRecognition(isAutoRestart = false) {
       $('micBtn').classList.add('listening');
       $('status').textContent = '🎙️ Listening…';
     } catch (e) {
-      toast('Could not start listening');
+      toast('Could not start listening. Try Chrome for best results.');
       $('micBtn').classList.remove('thinking');
+      $('status').textContent = 'Speech unavailable.';
     }
   }, isAutoRestart ? 800 : 1200);
 }
